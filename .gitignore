@@ -3,3 +3,5 @@ ICEdit.app/Contents/Library/Python
 .DS_Store
 ICEdit.app/Contents/MacOS
 ICEdit.app/Contents/_CodeSignature
+ICEdit.app/Contents/Resources/Scripts/__pycache__
+ICEdit.app/Contents/Helpers/glyphsvg/glyphsvg

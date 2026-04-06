@@ -9,14 +9,16 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
-				<string>*</string>
-			</array>
-			<key>CFBundleTypeOSTypes</key>
-			<array>
-				<string>****</string>
+				<string>icon</string>
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.apple.iconcomposer.icon</string>
+			</array>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>

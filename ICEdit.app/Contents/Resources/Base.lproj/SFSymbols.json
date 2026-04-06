@@ -1,0 +1,116 @@
+{
+  "type": "HSplitView",
+  "properties": {
+    "frame": {
+      "minWidth": 700.0,
+      "minHeight": 500.0,
+      "idealWidth": 800.0,
+      "idealHeight": 550.0
+    }
+  },
+  "children": [
+    {
+      "type": "VStack",
+      "properties": {
+        "spacing": 0.0,
+        "frame": {
+          "minWidth": 220.0,
+          "idealWidth": 280.0,
+          "maxWidth": 350.0,
+          "maxHeight": 10000.0
+        }
+      },
+      "children": [
+        {
+          "type": "TextField",
+          "id": 1,
+          "properties": {
+            "prompt": "Filter",
+            "padding": { "top": 8.0, "leading": 8.0, "trailing": 8.0, "bottom": 4.0 },
+            "valueChangeActionID": "ICEdit.sfsymbols.filter"
+          }
+        },
+        {
+          "type": "List",
+          "id": 2,
+          "properties": {
+            "actionID": "ICEdit.sfsymbols.select"
+          }
+        },
+        {
+          "type": "Text",
+          "id": 3,
+          "properties": {
+            "text": "",
+            "font": "caption",
+            "foregroundColor": "secondary",
+            "padding": { "top": 4.0, "bottom": 4.0, "leading": 8.0 }
+          }
+        }
+      ]
+    },
+    {
+      "type": "VStack",
+      "properties": {
+        "frame": {
+          "minWidth": 300.0,
+          "idealWidth": 400.0,
+          "maxHeight": 10000.0
+        }
+      },
+      "children": [
+        { "type": "Spacer" },
+        {
+          "type": "Image",
+          "id": 10,
+          "properties": {
+            "scaleMode": "fit",
+            "systemName": "",
+            "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
+            "padding": "default"
+          }
+        },
+        { "type": "Spacer" },
+        {
+          "type": "HStack",
+          "properties": {
+            "padding": { "bottom": 12.0, "leading": 12.0, "trailing": 12.0 },
+            "spacing": 8.0
+          },
+          "children": [
+            {
+              "type": "Picker",
+              "id": 11,
+              "properties": {
+                "title": "Weight",
+                "options": [
+                  { "title": "Ultralight", "tag": "ultralight" },
+                  { "title": "Thin", "tag": "thin" },
+                  { "title": "Light", "tag": "light" },
+                  { "title": "Regular", "tag": "regular" },
+                  { "title": "Medium", "tag": "medium" },
+                  { "title": "Semibold", "tag": "semibold" },
+                  { "title": "Bold", "tag": "bold" },
+                  { "title": "Heavy", "tag": "heavy" },
+                  { "title": "Black", "tag": "black" }
+                ],
+                "pickerStyle": "menu",
+                "actionID": "ICEdit.sfsymbols.select"
+              }
+            },
+            { "type": "Spacer" },
+            {
+              "type": "Button",
+              "id": 20,
+              "properties": {
+                "title": "Add Layer",
+                "buttonStyle": "borderedProminent",
+                "actionID": "ICEdit.sfsymbols.add"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

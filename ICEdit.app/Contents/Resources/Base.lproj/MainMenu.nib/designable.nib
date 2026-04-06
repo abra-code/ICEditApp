@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24506" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="24765" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24506"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="24765"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication"/>
@@ -74,6 +74,9 @@
                                 <userDefinedRuntimeAttributes>
                                     <userDefinedRuntimeAttribute type="string" keyPath="commandID" value="ICEdit.open"/>
                                 </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="openDocument:" target="-1" id="dbP-b6-5Pi"/>
+                                </connections>
                             </menuItem>
                             <menuItem title="Open Recent" id="124">
                                 <menu key="submenu" title="Open Recent" systemMenu="recentDocuments" id="125">
@@ -95,6 +98,37 @@
                                 </connections>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="74">
+                                <modifierMask key="keyEquivalentModifierMask" command="YES"/>
+                            </menuItem>
+                            <menuItem title="Save" image="square.and.arrow.down" catalog="system" keyEquivalent="s" id="c78-eP-t7a" customClass="OMCMenuItem">
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="string" keyPath="commandID" value="ICEdit.save"/>
+                                </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="performClose:" target="-1" id="y0a-uQ-GP5"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="0dH-Xe-hh8">
+                                <modifierMask key="keyEquivalentModifierMask" command="YES"/>
+                            </menuItem>
+                            <menuItem title="Export Assets &amp; icns..." image="square.and.arrow.up.on.square" catalog="system" keyEquivalent="e" id="EuH-qW-xxo" customClass="OMCMenuItem">
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="string" keyPath="commandID" value="ICEdit.export"/>
+                                </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="performClose:" target="-1" id="cLy-ML-9r8"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem title="Install in App..." image="square.and.arrow.down.on.square" catalog="system" id="scL-TE-jjb" customClass="OMCMenuItem">
+                                <modifierMask key="keyEquivalentModifierMask"/>
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="string" keyPath="commandID" value="ICEdit.install"/>
+                                </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="performClose:" target="-1" id="rNu-lt-GLW"/>
+                                </connections>
+                            </menuItem>
+                            <menuItem isSeparatorItem="YES" id="gt5-lG-oAW">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>
                             <menuItem title="Page Setup..." keyEquivalent="P" id="77">
@@ -514,4 +548,9 @@
             </userDefinedRuntimeAttributes>
         </customObject>
     </objects>
+    <resources>
+        <image name="square.and.arrow.down" catalog="system" width="15" height="17"/>
+        <image name="square.and.arrow.down.on.square" catalog="system" width="17" height="20"/>
+        <image name="square.and.arrow.up.on.square" catalog="system" width="17" height="20"/>
+    </resources>
 </document>

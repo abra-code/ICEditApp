@@ -1,0 +1,760 @@
+{
+  "type": "HSplitView",
+  "properties": {
+    "frame": {
+      "minWidth": 800.0,
+      "minHeight": 700.0,
+      "idealWidth": 1000.0,
+      "idealHeight": 800.0
+    }
+  },
+  "children": [
+    {
+      "type": "VStack",
+      "properties": {
+        "spacing": 0.0,
+        "frame": {
+          "minWidth": 280.0,
+          "idealWidth": 300.0,
+          "maxWidth": 400.0,
+          "maxHeight": 10000.0
+        }
+      },
+      "children": [
+        {
+          "type": "Text",
+          "properties": {
+            "text": "Layers",
+            "font": "headline",
+            "padding": { "top": 8.0, "leading": 8.0, "bottom": 4.0 }
+          }
+        },
+        {
+          "type": "Table",
+          "id": 100,
+          "properties": {
+            "columns": ["", "", "Name", ""],
+            "columnTypes": [
+              { "viewType": "Image", "dataInterpretation": "mixed" },
+              { "viewType": "Image", "dataInterpretation": "resourceName" },
+              { "viewType": "Text" },
+              { "viewType": "Button", "dataInterpretation": "systemName",
+                "actionID": "ICEdit.layer.toggle.visible", "actionContext": "rowIndex" }
+            ],
+            "widths": [20, 20, 140, 30],
+            "columnHeadersVisibility": "hidden",
+            "actionID": "ICEdit.layer.select"
+          }
+        },
+        {
+          "type": "HStack",
+          "properties": {
+            "spacing": 4.0,
+            "padding": { "top": 4.0, "bottom": 4.0, "leading": 8.0, "trailing": 8.0 }
+          },
+          "children": [
+            {
+              "type": "Menu",
+              "id": 101,
+              "properties": {
+                "buttonStyle": "plain"
+              },
+              "label": {
+                "type": "Image",
+                "properties": {
+                  "systemName": "plus.circle",
+                  "imageScale": "large",
+                  "frame": { "width": 32, "height": 28 }
+                }
+              },
+              "children": [
+                {
+                  "type": "Button",
+                  "properties": {
+                    "title": "Layer with Image...",
+                    "actionID": "ICEdit.layer.add"
+                  }
+                },
+                {
+                  "type": "Button",
+                  "properties": {
+                    "title": "Layer with SF Symbol",
+                    "actionID": "ICEdit.sfsymbols"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Button",
+              "id": 102,
+              "properties": {
+                "systemImage": "minus.circle",
+                "imageScale": "large",
+                "buttonStyle": "plain",
+                "frame": { "width": 32, "height": 28 },
+                "actionID": "ICEdit.layer.remove"
+              }
+            },
+            {
+              "type": "Button",
+              "id": 103,
+              "properties": {
+                "systemImage": "arrow.up.circle",
+                "imageScale": "large",
+                "buttonStyle": "plain",
+                "frame": { "width": 32, "height": 28 },
+                "actionID": "ICEdit.layer.move.up"
+              }
+            },
+            {
+              "type": "Button",
+              "id": 104,
+              "properties": {
+                "systemImage": "arrow.down.circle",
+                "imageScale": "large",
+                "buttonStyle": "plain",
+                "frame": { "width": 32, "height": 28 },
+                "actionID": "ICEdit.layer.move.down"
+              }
+            },
+            { "type": "Spacer" }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "HSplitView",
+      "children": [
+        {
+          "type": "VStack",
+          "properties": {
+            "frame": {
+              "minWidth": 300.0,
+              "idealWidth": 400.0,
+              "maxHeight": 10000.0
+            }
+          },
+          "children": [
+            { "type": "Spacer" },
+            {
+              "type": "Image",
+              "id": 200,
+              "properties": {
+                "resourceName": "Blank.png",
+                "scaleMode": "fit",
+                "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
+                "padding": "default"
+              }
+            },
+            { "type": "Spacer" },
+            {
+              "type": "HStack",
+              "properties": {
+                "padding": { "bottom": 8.0 }
+              },
+              "children": [
+                {
+                  "type": "Text",
+                  "id": 399,
+                  "properties": {
+                    "text": "",
+                    "font": "caption",
+                    "padding": { "leading": 16, "bottom": 0 },
+                    "foregroundColor": "secondary"
+                  }
+                },
+                { "type": "Spacer" },
+                {
+                  "type": "Button",
+                  "properties": {
+                    "title": "Open in Icon Composer",
+                    "controlSize": "small",
+                    "padding": { "trailing": 16, "bottom": 0 },
+                    "actionID": "ICEdit.open.in.composer"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "ZStack",
+          "properties": {
+            "frame": {
+              "minWidth": 250.0,
+              "idealWidth": 280.0,
+              "maxWidth": 300.0,
+              "maxHeight": 10000.0
+            }
+          },
+          "children": [
+            {
+              "type": "VStack",
+              "id": 500,
+              "properties": {
+                "alignment": "leading",
+                "hidden": true,
+                "spacing": 12.0,
+                "padding": { "top": 12.0, "leading": 12.0, "trailing": 12.0, "bottom": 12.0 }
+              },
+              "children": [
+                {
+                  "type": "GroupBox",
+                  "properties": { "title": "Background" },
+                  "children": [
+                    {
+                      "type": "VStack",
+                      "properties": { "alignment": "leading" },
+                      "children": [
+                        { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                        {
+                          "type": "Form",
+                          "children": [
+                            {
+                              "type": "Picker",
+                              "id": 301,
+                              "properties": {
+                                "title": "Fill",
+                                "options": [
+                                  { "title": "None", "tag": "none" },
+                                  { "title": "Automatic", "tag": "automatic" },
+                                  { "title": "Solid", "tag": "solid" },
+                                  { "title": "Auto Gradient", "tag": "auto-gradient" },
+                                  { "title": "Gradient", "tag": "gradient" }
+                                ],
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            },
+                            {
+                              "type": "HStack",
+                              "id": 302,
+                              "children": [
+                                { "type": "Text", "id": 3021, "properties": { "text": "Color" } },
+                                {
+                                  "type": "ColorPicker",
+                                  "id": 3020,
+                                  "properties": {
+                                    "selectedColor": "#FFFFFF",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "HStack",
+                              "id": 303,
+                              "properties": { "hidden": true },
+                              "children": [
+                                { "type": "Text", "id": 3031, "properties": { "text": "Color 2" } },
+                                {
+                                  "type": "ColorPicker",
+                                  "id": 3030,
+                                  "properties": {
+                                    "selectedColor": "#FFFFFF",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                { "type": "Spacer" }
+              ]
+            },
+            {
+              "type": "VStack",
+              "id": 501,
+              "properties": {
+                "hidden": true,
+                "spacing": 12.0,
+                "padding": { "top": 12.0, "leading": 12.0, "trailing": 12.0, "bottom": 12.0 }
+              },
+              "children": [
+                {
+                  "type": "GroupBox",
+                  "properties": { "title": "Layer" },
+                  "children": [
+                    {
+                      "type": "VStack",
+                      "properties": { "alignment": "leading" },
+                      "children": [
+                        { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                        {
+                          "type": "Form",
+                          "children": [
+                            {
+                              "type": "TextField",
+                              "id": 320,
+                              "properties": {
+                                "title": "Name",
+                                "value": "",
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "GroupBox",
+                  "properties": { "title": "Color" },
+                  "children": [
+                    {
+                      "type": "VStack",
+                      "properties": { "alignment": "leading" },
+                      "children": [
+                        { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                        {
+                          "type": "Form",
+                          "children": [
+                            {
+                              "type": "Picker",
+                              "id": 311,
+                              "properties": {
+                                "title": "Fill",
+                                "options": [
+                                  { "title": "None", "tag": "none" },
+                                  { "title": "Automatic", "tag": "automatic" },
+                                  { "title": "Solid", "tag": "solid" },
+                                  { "title": "Auto Gradient", "tag": "auto-gradient" },
+                                  { "title": "Gradient", "tag": "gradient" }
+                                ],
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            },
+                            {
+                              "type": "HStack",
+                              "id": 312,
+                              "children": [
+                                { "type": "Text", "id": 3121, "properties": { "text": "Color" } },
+                                {
+                                  "type": "ColorPicker",
+                                  "id": 3120,
+                                  "properties": {
+                                    "selectedColor": "#FFFFFF",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "HStack",
+                              "id": 313,
+                              "properties": { "hidden": true },
+                              "children": [
+                                { "type": "Text", "id": 3131, "properties": { "text": "Color 2" } },
+                                {
+                                  "type": "ColorPicker",
+                                  "id": 3130,
+                                  "properties": {
+                                    "selectedColor": "#FFFFFF",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "Picker",
+                              "id": 318,
+                              "properties": {
+                                "title": "Blend",
+                                "options": [
+                                  { "title": "Normal", "tag": "normal" },
+                                  { "title": "Darken", "tag": "darken" },
+                                  { "title": "Multiply", "tag": "multiply" },
+                                  { "title": "Plus Darker", "tag": "plus-darker" },
+                                  { "title": "Lighten", "tag": "lighten" },
+                                  { "title": "Screen", "tag": "screen" },
+                                  { "title": "Plus Lighter", "tag": "plus-lighter" },
+                                  { "title": "Overlay", "tag": "overlay" },
+                                  { "title": "Soft Light", "tag": "soft-light" },
+                                  { "title": "Hard Light", "tag": "hard-light" }
+                                ],
+                                "pickerStyle": "menu",
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "GroupBox",
+                  "properties": { "title": "Effects" },
+                  "children": [
+                    {
+                      "type": "VStack",
+                      "properties": { "alignment": "leading" },
+                      "children": [
+                        { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                        {
+                          "type": "Form",
+                          "children": [
+                            {
+                              "type": "Toggle",
+                              "id": 317,
+                              "properties": {
+                                "title": "Glass",
+                                "isOn": false,
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "GroupBox",
+                  "properties": { "title": "Composition" },
+                  "children": [
+                    {
+                      "type": "VStack",
+                      "properties": { "alignment": "leading" },
+                      "children": [
+                        { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                        {
+                          "type": "Form",
+                          "children": [
+                            {
+                              "type": "Toggle",
+                              "id": 319,
+                              "properties": {
+                                "title": "Visible",
+                                "isOn": true,
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            },
+                            {
+                              "type": "TextField",
+                              "id": 314,
+                              "properties": {
+                                "title": "Scale",
+                                "format": "percent",
+                                "fractionLength": {"min": 0, "max": 2},
+                                "value": 1.0,
+                                "frame": { "maxWidth": 120.0 },
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            },
+                            {
+                              "type": "TextField",
+                              "id": 315,
+                              "properties": {
+                                "title": "Shift X",
+                                "format": "integer",
+                                "value": 0,
+                                "frame": { "maxWidth": 120.0 },
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            },
+                            {
+                              "type": "TextField",
+                              "id": 316,
+                              "properties": {
+                                "title": "Shift Y",
+                                "format": "integer",
+                                "value": 0,
+                                "frame": { "maxWidth": 120.0 },
+                                "actionID": "ICEdit.settings.apply"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                { "type": "Spacer" }
+              ]
+            },
+            {
+              "type": "VStack",
+              "id": 502,
+              "properties": {
+                "hidden": true,
+                "spacing": 12.0,
+                "padding": { "top": 12.0, "leading": 12.0, "trailing": 12.0, "bottom": 12.0 }
+              },
+              "children": [
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Group" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "TextField",
+                                  "id": 333,
+                                  "properties": {
+                                    "title": "Name",
+                                    "value": "",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Color" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "TextField",
+                                  "id": 334,
+                                  "properties": {
+                                    "title": "Opacity",
+                                    "format": "percent",
+                                    "fractionLength": {"min": 0, "max": 2},
+                                    "value": 1.0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "Picker",
+                                  "id": 335,
+                                  "properties": {
+                                    "title": "Blend",
+                                    "options": [
+                                      { "title": "Normal", "tag": "normal" },
+                                      { "title": "Darken", "tag": "darken" },
+                                      { "title": "Multiply", "tag": "multiply" },
+                                      { "title": "Plus Darker", "tag": "plus-darker" },
+                                      { "title": "Lighten", "tag": "lighten" },
+                                      { "title": "Screen", "tag": "screen" },
+                                      { "title": "Plus Lighter", "tag": "plus-lighter" },
+                                      { "title": "Overlay", "tag": "overlay" },
+                                      { "title": "Soft Light", "tag": "soft-light" },
+                                      { "title": "Hard Light", "tag": "hard-light" }
+                                    ],
+                                    "pickerStyle": "menu",
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Effects" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "TextField",
+                                  "id": 336,
+                                  "properties": {
+                                    "title": "Blur",
+                                    "format": "percent",
+                                    "fractionLength": {"min": 0, "max": 2},
+                                    "value": 0.0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "Picker",
+                                  "id": 337,
+                                  "properties": {
+                                    "title": "Lighting",
+                                    "options": [
+                                      { "title": "Combined", "tag": "combined" },
+                                      { "title": "Individual", "tag": "individual" }
+                                    ],
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "Toggle",
+                                  "id": 338,
+                                  "properties": {
+                                    "title": "Specular",
+                                    "isOn": true,
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Translucency" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "TextField",
+                                  "id": 330,
+                                  "properties": {
+                                    "title": "Opacity",
+                                    "format": "percent",
+                                    "fractionLength": {"min": 0, "max": 2},
+                                    "value": 1.0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Shadow" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "Picker",
+                                  "id": 331,
+                                  "properties": {
+                                    "title": "Shadow",
+                                    "options": [
+                                      { "title": "Off", "tag": "none" },
+                                      { "title": "Neutral", "tag": "neutral" },
+                                      { "title": "Chromatic", "tag": "layer-color" }
+                                    ],
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "TextField",
+                                  "id": 332,
+                                  "properties": {
+                                    "title": "Opacity",
+                                    "format": "percent",
+                                    "fractionLength": {"min": 0, "max": 2},
+                                    "value": 0.5,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "GroupBox",
+                      "properties": { "title": "Composition" },
+                      "children": [
+                        {
+                          "type": "VStack",
+                          "properties": { "alignment": "leading" },
+                          "children": [
+                            { "type": "Divider", "properties": { "opacity": 0, "frame": { "height": 0 } } },
+                            {
+                              "type": "Form",
+                              "children": [
+                                {
+                                  "type": "Toggle",
+                                  "id": 339,
+                                  "properties": {
+                                    "title": "Visible",
+                                    "isOn": true,
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "TextField",
+                                  "id": 340,
+                                  "properties": {
+                                    "title": "Scale",
+                                    "format": "percent",
+                                    "fractionLength": {"min": 0, "max": 2},
+                                    "value": 1.0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "TextField",
+                                  "id": 341,
+                                  "properties": {
+                                    "title": "Shift X",
+                                    "format": "integer",
+                                    "value": 0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                },
+                                {
+                                  "type": "TextField",
+                                  "id": 342,
+                                  "properties": {
+                                    "title": "Shift Y",
+                                    "format": "integer",
+                                    "value": 0,
+                                    "frame": { "maxWidth": 120.0 },
+                                    "actionID": "ICEdit.settings.apply"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    { "type": "Spacer" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

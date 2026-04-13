@@ -90,6 +90,14 @@
 		</dict>
 		<dict>
 			<key>COMMAND_ID</key>
+			<string>ICEdit.layer.drop</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
+			<key>COMMAND_ID</key>
 			<string>ICEdit.settings.apply</string>
 			<key>EXECUTION_MODE</key>
 			<string>exe_script_file</string>

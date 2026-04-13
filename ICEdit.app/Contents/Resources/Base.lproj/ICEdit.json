@@ -43,7 +43,9 @@
             ],
             "widths": [20, 20, 140, 30],
             "columnHeadersVisibility": "hidden",
-            "actionID": "ICEdit.layer.select"
+            "actionID": "ICEdit.layer.select",
+            "onDropTypes": ["public.file-url"],
+            "onDropActionID": "ICEdit.layer.drop"
           }
         },
         {

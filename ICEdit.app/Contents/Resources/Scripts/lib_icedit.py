@@ -132,6 +132,12 @@ def log(msg):
             f.write(msg + "\n")
 
 
+def print_env():
+    """Print all environment variables to stdout, sorted by name."""
+    for key, value in sorted(os.environ.items()):
+        print(f"{key}={value}")
+
+
 def set_value(view_id, value, target=None):
     """Set a view's value via omc_dialog_control."""
     t = target or WINDOW_UUID

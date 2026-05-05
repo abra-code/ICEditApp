@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.join(os.environ.get("OMC_APP_BUNDLE_PATH", ""),
                                 "Contents/Resources/Scripts"))
 from lib_icedit import *
 
+# print_env()
+
 log("=== ICEdit.layer.toggle.visible.py ===")
 
 icon_path = get_icon_path()

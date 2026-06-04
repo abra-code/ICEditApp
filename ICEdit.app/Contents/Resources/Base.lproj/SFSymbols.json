@@ -64,7 +64,7 @@
           "type": "Image",
           "id": 10,
           "properties": {
-            "scaleMode": "fit",
+            "contentMode": "fit",
             "systemName": "",
             "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
             "padding": "default"

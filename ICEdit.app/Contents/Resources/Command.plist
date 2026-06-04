@@ -153,7 +153,9 @@
 				<key>BUTTON_PROMPT</key>
 				<string>Save</string>
 				<key>DEFAULT_FILE_NAME</key>
-				<string>Untitled.icon</string>
+				<array>
+					<string>Untitled.icon</string>
+				</array>
 				<key>DEFAULT_LOCATION</key>
 				<array>
 					<string>~/Documents</string>
@@ -167,8 +169,6 @@
 			<true/>
 		</dict>
 		<dict>
-			<key>COMMAND_ID</key>
-			<string>ICEdit.export</string>
 			<key>CHOOSE_FOLDER_DIALOG</key>
 			<dict>
 				<key>BUTTON_PROMPT</key>
@@ -178,14 +178,14 @@
 				<key>USE_PATH_CACHING</key>
 				<false/>
 			</dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.export</string>
 			<key>EXECUTION_MODE</key>
 			<string>exe_script_file</string>
 			<key>NAME</key>
 			<string>ICEdit</string>
 		</dict>
 		<dict>
-			<key>COMMAND_ID</key>
-			<string>ICEdit.install</string>
 			<key>CHOOSE_OBJECT_DIALOG</key>
 			<dict>
 				<key>ALLOWED_CONTENT_TYPES</key>
@@ -199,6 +199,8 @@
 				<key>USE_PATH_CACHING</key>
 				<false/>
 			</dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.install</string>
 			<key>EXECUTION_MODE</key>
 			<string>exe_script_file</string>
 			<key>NAME</key>
@@ -270,10 +272,10 @@
 			<string>ICEdit.window.close</string>
 			<key>EXECUTION_MODE</key>
 			<string>exe_script_file</string>
-			<key>WAIT_FOR_TASK_COMPLETION</key>
-			<true/>
 			<key>NAME</key>
 			<string>ICEdit</string>
+			<key>WAIT_FOR_TASK_COMPLETION</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>COMMAND_ID</key>

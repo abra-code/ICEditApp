@@ -143,7 +143,7 @@
               "id": 200,
               "properties": {
                 "resourceName": "Blank.png",
-                "scaleMode": "fit",
+                "contentMode": "fit",
                 "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
                 "padding": "default"
               }

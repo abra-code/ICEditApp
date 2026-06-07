@@ -20,9 +20,18 @@ with open(NAMES_FILE) as f:
     all_names = [line.strip() for line in f if line.strip()]
 
 if search:
-    # Split search into terms — all must match (AND logic)
+    # Split search into terms — a name matches if ANY term appears in it (OR
+    # logic), and results are ranked by how many distinct terms match so the
+    # best matches bubble to the top. Within the same rank the original
+    # (alphabetical) order is preserved by the stable sort.
     terms = search.split()
-    filtered = [n for n in all_names if all(t in n for t in terms)]
+    scored = []
+    for n in all_names:
+        rank = sum(1 for t in terms if t in n)
+        if rank > 0:
+            scored.append((rank, n))
+    scored.sort(key=lambda x: -x[0])
+    filtered = [n for _, n in scored]
 else:
     filtered = all_names
 

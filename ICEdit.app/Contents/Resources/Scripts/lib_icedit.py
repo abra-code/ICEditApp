@@ -564,13 +564,14 @@ def cleanup_state():
             os.remove(f)
         except OSError:
             pass
-    # Remove SF Symbol SVG for this window
-    svg = f"/tmp/icedit_sfsymbol_{WINDOW_UUID}.svg"
-    if os.path.isfile(svg):
-        try:
-            os.remove(svg)
-        except OSError:
-            pass
+    # Remove SF Symbol / Material Symbol SVGs for this window
+    for svg in (f"/tmp/icedit_sfsymbol_{WINDOW_UUID}.svg",
+                f"/tmp/icedit_matsymbol_{WINDOW_UUID}.svg"):
+        if os.path.isfile(svg):
+            try:
+                os.remove(svg)
+            except OSError:
+                pass
     pb_set(PB_ICON_PATH, "")
     pb_set(PB_ORIGINAL_ICON_PATH, "")
     pb_set(PB_SELECTED_LAYER, "")

@@ -260,6 +260,59 @@
 			<string>ICEdit</string>
 		</dict>
 		<dict>
+			<key>ACTIONUI_WINDOW</key>
+			<dict>
+				<key>END_OK_SUBCOMMAND_ID</key>
+				<string>ICEdit.materialsymbols.add</string>
+				<key>INIT_SUBCOMMAND_ID</key>
+				<string>ICEdit.materialsymbols.init</string>
+				<key>IS_BLOCKING</key>
+				<false/>
+				<key>JSON_NAME</key>
+				<string>MaterialSymbols</string>
+				<key>WINDOW_TITLE</key>
+				<string>Material Symbols</string>
+			</dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.materialsymbols</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.materialsymbols.init</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.materialsymbols.filter</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.materialsymbols.select</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
+			<key>COMMAND_ID</key>
+			<string>ICEdit.materialsymbols.add</string>
+			<key>EXECUTION_MODE</key>
+			<string>exe_script_file</string>
+			<key>NAME</key>
+			<string>ICEdit</string>
+		</dict>
+		<dict>
 			<key>COMMAND_ID</key>
 			<string>ICEdit.window.activated</string>
 			<key>EXECUTION_MODE</key>

@@ -83,6 +83,13 @@
                     "title": "Layer with SF Symbol",
                     "actionID": "ICEdit.sfsymbols"
                   }
+                },
+                {
+                  "type": "Button",
+                  "properties": {
+                    "title": "Layer with Material Symbol",
+                    "actionID": "ICEdit.materialsymbols"
+                  }
                 }
               ]
             },

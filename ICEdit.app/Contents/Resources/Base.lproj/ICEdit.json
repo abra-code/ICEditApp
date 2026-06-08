@@ -42,6 +42,7 @@
                 "actionID": "ICEdit.layer.toggle.visible", "actionContext": "rowIndex" }
             ],
             "widths": [20, 20, 140, 30],
+            "minWidths": [16, 16, 100, 16],
             "columnHeadersVisibility": "hidden",
             "actionID": "ICEdit.layer.select",
             "onDropTypes": ["public.file-url"],
@@ -59,7 +60,8 @@
               "type": "Menu",
               "id": 101,
               "properties": {
-                "buttonStyle": "plain"
+                "buttonStyle": "plain",
+                "help": "Add Layer"
               },
               "label": {
                 "type": "Image",
@@ -101,7 +103,8 @@
                 "imageScale": "large",
                 "buttonStyle": "plain",
                 "frame": { "width": 32, "height": 28 },
-                "actionID": "ICEdit.layer.remove"
+                "actionID": "ICEdit.layer.remove",
+                "help": "Remove Layer"
               }
             },
             {
@@ -112,7 +115,8 @@
                 "imageScale": "large",
                 "buttonStyle": "plain",
                 "frame": { "width": 32, "height": 28 },
-                "actionID": "ICEdit.layer.move.up"
+                "actionID": "ICEdit.layer.move.up",
+                "help": "Move Layer Up"
               }
             },
             {
@@ -123,7 +127,8 @@
                 "imageScale": "large",
                 "buttonStyle": "plain",
                 "frame": { "width": 32, "height": 28 },
-                "actionID": "ICEdit.layer.move.down"
+                "actionID": "ICEdit.layer.move.down",
+                "help": "Move Layer Down"
               }
             },
             { "type": "Spacer" }

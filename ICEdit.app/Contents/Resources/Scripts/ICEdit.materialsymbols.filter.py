@@ -8,6 +8,7 @@ import sys
 sys.path.insert(0, os.path.join(os.environ.get("OMC_APP_BUNDLE_PATH", ""),
                                 "Contents/Resources/Scripts"))
 from lib_material import load_names, load_search_index, filter_names
+from lib_debounce import should_rebuild
 
 SUPPORT_PATH = os.environ.get("OMC_OMC_SUPPORT_PATH", "")
 DIALOG_TOOL = os.path.join(SUPPORT_PATH, "omc_dialog_control")
@@ -17,6 +18,11 @@ ID_LIST = 2
 ID_STATUS = 3
 
 search = os.environ.get("OMC_ACTIONUI_VIEW_1_VALUE", "")
+
+# Collapse fast bursts of keystrokes into a single rebuild — bail out if a newer
+# keystroke arrived while we waited.
+if not should_rebuild(WINDOW_UUID):
+    sys.exit(0)
 
 names = load_names()
 search_index = load_search_index()

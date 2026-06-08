@@ -21,10 +21,14 @@ if not dest_dir:
     set_status("Export cancelled")
     sys.exit(0)
 
-icon_path = get_icon_path()
-if not icon_path:
+if not get_icon_path():
     set_status("No icon to export")
     sys.exit(1)
+
+original_path = get_original_icon_path()
+if not original_path:
+    set_status("Save the icon first before exporting")
+    sys.exit(0)
 
 if not ACTOOL:
     subprocess.run([
@@ -37,7 +41,32 @@ if not ACTOOL:
     set_status("Export failed: Xcode (actool) not installed")
     sys.exit(1)
 
-icon_base = os.path.splitext(os.path.basename(icon_path))[0] or "Untitled"
+if is_dirty():
+    r = subprocess.run([
+        ALERT_TOOL,
+        "--level", "caution",
+        "--title", "Unsaved Changes",
+        "--ok", "Save and Export",
+        "--cancel", "Export Without Saving",
+        "--other", "Cancel",
+        "You have unsaved changes. Save before exporting?"
+    ], capture_output=False)
+    choice = r.returncode
+
+    if choice == 2:
+        sys.exit(0)
+    elif choice == 0:
+        dest = save_icon_to(original_path)
+        if dest:
+            mark_clean()
+            store_original_hash()
+            set_status(f"Saved {os.path.basename(dest)}")
+        else:
+            set_status("Save failed")
+            sys.exit(1)
+    # choice == 1: Export Without Saving — proceed with stale file on disk
+
+icon_base = os.path.splitext(os.path.basename(original_path))[0] or "Untitled"
 export_dir = os.path.join(dest_dir, f"{icon_base}-Exported")
 os.makedirs(export_dir, exist_ok=True)
 log(f"Exporting '{icon_base}' to '{export_dir}'")
@@ -47,7 +76,7 @@ partial_plist = os.path.join(export_dir, "partial-Info.plist")
 temp_dir = tempfile.mkdtemp(prefix="icedit_export_")
 try:
     result = subprocess.run([
-        ACTOOL, icon_path,
+        ACTOOL, original_path,
         "--compile", temp_dir,
         "--app-icon", icon_base,
         "--platform", "macosx",

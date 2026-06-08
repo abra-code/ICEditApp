@@ -61,13 +61,17 @@ def load_search_index():
 def filter_names(names, search_index, search):
     """Filter and rank names by a search string. A name matches if ANY of the
     whitespace-separated terms appears in its name+tags text (OR logic). Results
-    are ranked primarily by how many distinct terms match — a name matching all
-    N terms ranks above one matching N-1, and so on — so the best matches bubble
-    to the top. As a secondary tie-break, matches in the symbol *name* outrank
-    matches that only hit the tags/metadata, so e.g. searching "car" lists the
-    symbols whose name contains "car" above ones that merely have "car" as a
-    tag. Within an equal rank the input (alphabetical) order is preserved.
-    Falls back to the name alone for symbols that have no metadata entry."""
+    are ranked by a tuple of scores, most significant first:
+
+      1. full-word name matches — terms that equal a whole word of the symbol
+         name (words are split on '_'), so searching "car" puts "car" and
+         "directions_car" above "scorecard" where "car" is only part of a word;
+      2. total matches — how many distinct terms appear anywhere in name+tags;
+      3. name matches — terms that appear in the name (vs tags only), so a
+         name-substring match outranks a tag-only match.
+
+    Within an equal score the input (alphabetical) order is preserved by the
+    stable sort. Falls back to the name alone for symbols with no metadata."""
     search = (search or "").lower().strip()
     if not search:
         return names
@@ -75,12 +79,14 @@ def filter_names(names, search_index, search):
     scored = []
     for n in names:
         name_text = n.lower()
+        name_words = name_text.replace("_", " ").split()
         haystack = search_index.get(n, name_text)
         rank = sum(1 for t in terms if t in haystack)
         if rank > 0:
+            word_rank = sum(1 for t in terms if t in name_words)
             name_rank = sum(1 for t in terms if t in name_text)
-            scored.append((rank, name_rank, n))
-    # names arrive sorted; stable sort by descending (rank, name_rank) keeps
-    # alpha order within an equal score
-    scored.sort(key=lambda x: (-x[0], -x[1]))
-    return [n for _, _, n in scored]
+            scored.append((word_rank, rank, name_rank, n))
+    # names arrive sorted; stable sort by descending score keeps alpha order
+    # within an equal score
+    scored.sort(key=lambda x: (-x[0], -x[1], -x[2]))
+    return [n for *_, n in scored]

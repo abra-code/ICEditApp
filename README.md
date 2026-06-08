@@ -50,6 +50,39 @@ The SVG is rendered by the bundled `glyphsvg` helper (`Contents/Helpers/glyphsvg
 
 ---
 
+## Material Symbols
+
+The **Add Layer with Material Symbol** menu item opens a Google Material Symbols picker window.
+
+- **Filter** — Type to search by symbol name, tags, or category in real time. Search is ranked: exact word matches in the symbol name outrank partial matches, which outrank tag-only matches.
+- **Symbol list** — Displays all available Material Symbols (~3,000+, Rounded style).
+- **Weight picker** — Selects rendering weight (Thin through Black). Defaults to Bold, which renders well as an icon layer.
+- **Fill toggle** — Optionally render the symbol in its filled variant.
+- **Preview** — Renders the selected symbol at the chosen weight/fill as an SVG.
+- **Add Layer button** — Adds the symbol as a new layer in the current icon using `icedit add_svg --auto-scale`.
+
+The SVG is rendered by the bundled `glyphsvg` helper using the Material Symbols Rounded variable font.
+
+### Development Setup (not needed for distributed app)
+
+Material Symbols data (font, codepoints, search metadata) is not committed to the repository due to file size. Run the included script once after checkout, and again to refresh:
+
+```bash
+./download_material_symbols.sh /path/to/ICEdit.app
+```
+
+This downloads into `Contents/Helpers/glyphsvg/material/`:
+
+| File | Description |
+|---|---|
+| `MaterialSymbolsRounded.ttf` | Variable font used by `glyphsvg` for SVG rendering |
+| `MaterialSymbolsRounded.codepoints` | Name-to-glyph map; source of truth for the symbol list |
+| `material_symbols_metadata.json` | Tags, synonyms, and categories for richer search |
+
+Source: [google/material-design-icons](https://github.com/google/material-design-icons/tree/master/variablefont). After refreshing resources, re-sign the bundle with `codesign_applet.sh`.
+
+---
+
 ## Export
 
 **File > Export...** compiles the current icon using `actool` and writes the output to a folder you choose.

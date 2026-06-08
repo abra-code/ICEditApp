@@ -61,7 +61,9 @@ The **Add Layer with Material Symbol** menu item opens a Google Material Symbols
 - **Preview** — Renders the selected symbol at the chosen weight/fill as an SVG.
 - **Add Layer button** — Adds the symbol as a new layer in the current icon using `icedit add_svg --auto-scale`.
 
-The SVG is rendered by the bundled `glyphsvg` helper using the Material Symbols Rounded variable font.
+The SVG is rendered by the bundled `glyphsvg` helper using the Material Symbols Rounded variable font.  
+Browse Material Symbols repertoire here:   
+https://fonts.google.com/icons?selected=Material+Symbols+Rounded
 
 ### Development Setup (not needed for distributed app)
 
@@ -135,8 +137,8 @@ ICEdit uses the bundled `icedit` CLI (`Contents/Helpers/icedit/`) for all mutati
 
 | Helper | Location | Purpose |
 |---|---|---|
-| `icedit` | `Contents/Helpers/icedit/icedit` | CLI tool for reading and mutating `.icon` bundles |
-| `glyphsvg` | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols to SVG at a given weight and size |
+| [icedit](https://github.com/abra-code/icedit) | `Contents/Helpers/icedit/icedit` | CLI tool for reading and mutating `.icon` bundles |
+| [glyphsvg](https://github.com/abra-code/glyphsvg) | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols to SVG at a given weight and size |
 
 ---
 

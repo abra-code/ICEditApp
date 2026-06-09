@@ -84,6 +84,7 @@
               "properties": {
                 "title": "Weight",
                 "options": [
+                  { "title": "Ultralight", "tag": "ultralight" },
                   { "title": "Thin", "tag": "thin" },
                   { "title": "Light", "tag": "light" },
                   { "title": "Regular", "tag": "regular" },

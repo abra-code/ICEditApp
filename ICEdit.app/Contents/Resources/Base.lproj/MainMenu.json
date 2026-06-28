@@ -1,0 +1,46 @@
+[
+  {
+    "type": "CommandGroup",
+    "properties": { "placement": "replacing", "placementTarget": "open" },
+    "children": [
+      {
+        "type": "Button",
+        "properties": {
+          "title": "Open…",
+          "actionID": "ICEdit.open",
+          "keyboardShortcut": { "key": "o" }
+        }
+      }
+    ]
+  },
+  {
+    "type": "CommandGroup",
+    "properties": { "placement": "after", "placementTarget": "saveItem" },
+    "children": [
+      {
+        "type": "Button",
+        "properties": {
+          "title": "Save",
+          "actionID": "ICEdit.save",
+          "keyboardShortcut": { "key": "s" }
+        }
+      },
+      { "type": "Divider" },
+      {
+        "type": "Button",
+        "properties": {
+          "title": "Export Assets & icns...",
+          "actionID": "ICEdit.export",
+          "keyboardShortcut": { "key": "e" }
+        }
+      },
+      {
+        "type": "Button",
+        "properties": {
+          "title": "Install in App...",
+          "actionID": "ICEdit.install"
+        }
+      }
+    ]
+  }
+]

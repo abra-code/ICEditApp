@@ -1,0 +1,211 @@
+{
+    "COMMAND_LIST": [
+        {
+            "ACTIONUI_WINDOW": {
+                "END_CANCEL_SUBCOMMAND_ID": "ICEdit.window.close",
+                "IS_BLOCKING": false,
+                "JSON_NAME": "ICEdit",
+                "WINDOW_DID_ACTIVATE_SUBCOMMAND_ID": "ICEdit.window.activated"
+            },
+            "ACTIVATION_MODE": "act_always",
+            "COMMAND_ID": "ICEdit.main",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit",
+            "REQUIRED_MAC_OS_MIN_VERSION": "14.6",
+            "REQUIRED_OMC_VERSION": "5.1"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.select",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "CHOOSE_FILE_DIALOG": {
+                "ALLOWED_CONTENT_TYPES": [
+                    "public.image",
+                    "public.svg-image",
+                    "com.adobe.pdf"
+                ],
+                "BUTTON_PROMPT": "Add Layer",
+                "MESSAGE": "Select an image or SVG file"
+            },
+            "COMMAND_ID": "ICEdit.layer.add",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.remove",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.move.up",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.move.down",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.toggle.visible",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.layer.drop",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.settings.apply",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "ACTIVATION_MODE": "act_folder",
+            "COMMAND_ID": "ICEdit.open",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit",
+            "NEXT_COMMAND_ID": "ICEdit.main",
+            "OPEN_OBJECT_DIALOG": {
+                "ALLOWED_CONTENT_TYPES": [
+                    "com.apple.iconcomposer.icon"
+                ],
+                "BUTTON_PROMPT": "Open",
+                "DEFAULT_LOCATION": [
+                    "~/Documents"
+                ],
+                "MESSAGE": "Select .icon document"
+            }
+        },
+        {
+            "ACTIVATION_MODE": "act_always",
+            "COMMAND_ID": "ICEdit.save",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.save.as",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit",
+            "SAVE_AS_DIALOG": {
+                "BUTTON_PROMPT": "Save",
+                "DEFAULT_FILE_NAME": [
+                    "Untitled.icon"
+                ],
+                "DEFAULT_LOCATION": [
+                    "~/Documents"
+                ],
+                "MESSAGE": "Save Icon As",
+                "USE_PATH_CACHING": true
+            },
+            "WAIT_FOR_TASK_COMPLETION": true
+        },
+        {
+            "CHOOSE_FOLDER_DIALOG": {
+                "BUTTON_PROMPT": "Export Here",
+                "MESSAGE": "Choose export destination folder",
+                "USE_PATH_CACHING": false
+            },
+            "COMMAND_ID": "ICEdit.export",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "CHOOSE_OBJECT_DIALOG": {
+                "ALLOWED_CONTENT_TYPES": [
+                    "com.apple.application-bundle"
+                ],
+                "BUTTON_PROMPT": "Install",
+                "MESSAGE": "Choose an app to install the icon into",
+                "USE_PATH_CACHING": false
+            },
+            "COMMAND_ID": "ICEdit.install",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "ACTIONUI_WINDOW": {
+                "END_OK_SUBCOMMAND_ID": "ICEdit.sfsymbols.add",
+                "INIT_SUBCOMMAND_ID": "ICEdit.sfsymbols.init",
+                "IS_BLOCKING": false,
+                "JSON_NAME": "SFSymbols",
+                "WINDOW_TITLE": "SF Symbols"
+            },
+            "COMMAND_ID": "ICEdit.sfsymbols",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.sfsymbols.init",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.sfsymbols.filter",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.sfsymbols.select",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.sfsymbols.add",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "ACTIONUI_WINDOW": {
+                "END_OK_SUBCOMMAND_ID": "ICEdit.materialsymbols.add",
+                "INIT_SUBCOMMAND_ID": "ICEdit.materialsymbols.init",
+                "IS_BLOCKING": false,
+                "JSON_NAME": "MaterialSymbols",
+                "WINDOW_TITLE": "Material Symbols"
+            },
+            "COMMAND_ID": "ICEdit.materialsymbols",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.materialsymbols.init",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.materialsymbols.filter",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.materialsymbols.select",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.materialsymbols.add",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.window.activated",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.window.close",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit",
+            "WAIT_FOR_TASK_COMPLETION": true
+        },
+        {
+            "COMMAND_ID": "ICEdit.open.in.composer",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        }
+    ],
+    "VERSION": 2
+}

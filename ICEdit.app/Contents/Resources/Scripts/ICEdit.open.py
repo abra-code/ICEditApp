@@ -2,7 +2,7 @@
 """ICEdit.open - Open an icon file.
 
 The OMC engine handles OPEN_OBJECT_DIALOG to get the file path and
-NEXT_COMMAND_ID=top! to create a new window. This script loads
+NEXT_COMMAND_ID=ICEdit.main to create a new window. This script loads
 the selected .icon bundle into the new window."""
 
 import os
@@ -27,9 +27,9 @@ if not (icon_path and icon_path.endswith(".icon")
         set_status("Not a valid .icon bundle")
     sys.exit(0)
 
-# If no window, we're the no-window path — NEXT_COMMAND_ID=top! will create one
+# If no window, we're the no-window path — NEXT_COMMAND_ID=ICEdit.main will create one
 if not WINDOW_UUID:
-    log("No window — deferring to NEXT_COMMAND_ID=top!")
+    log("No window — deferring to NEXT_COMMAND_ID=ICEdit.main")
     sys.exit(0)
 
 # We have a window — load the file into it

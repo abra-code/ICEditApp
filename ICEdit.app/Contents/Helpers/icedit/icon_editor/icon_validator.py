@@ -41,7 +41,7 @@ def validate_icon(icon_path: str, output_dir: Optional[str] = None) -> Dict[str,
         return {"valid": False, "error": "Icon Composer not installed", "exports": []}
 
     if output_dir is None:
-        output_dir = "/tmp"
+        output_dir = os.environ.get("TMPDIR", "/tmp")
     os.makedirs(output_dir, exist_ok=True)
 
     platforms = ["macOS", "iOS"]

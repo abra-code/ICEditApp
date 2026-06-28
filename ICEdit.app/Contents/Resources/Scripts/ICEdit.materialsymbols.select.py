@@ -25,8 +25,9 @@ if not symbol:
 weight = os.environ.get("OMC_ACTIONUI_VIEW_11_VALUE", "regular") or "regular"
 fill = os.environ.get("OMC_ACTIONUI_VIEW_12_VALUE", "").strip().lower() in ("1", "true", "yes", "on")
 
-# Render SVG via glyphsvg in Material mode
-svg_path = f"/tmp/icedit_matsymbol_{WINDOW_UUID}.svg"
+# Render SVG via glyphsvg in Material mode ($TMPDIR scratch, shared with the add handler / lib_icedit cleanup)
+SCRATCH_DIR = os.environ.get("TMPDIR", "/tmp").rstrip("/")
+svg_path = f"{SCRATCH_DIR}/icedit_matsymbol_{WINDOW_UUID}.svg"
 cmd = [GLYPHSVG, f"--material={MATERIAL_STYLE_ARG}", symbol, weight, "768"]
 if fill:
     cmd.append("--fill")

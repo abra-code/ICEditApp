@@ -5,6 +5,12 @@ import sys
 import json
 import subprocess
 
+# Per-user scratch directory ($TMPDIR on macOS, e.g. /var/folders/.../T), not the
+# world-writable /tmp. Falls back to /tmp when $TMPDIR is unset. All ICEdit scripts
+# derive scratch paths from $TMPDIR the same way so shared files (working copy,
+# preview PNGs, symbol SVGs) resolve to the same location across script invocations.
+SCRATCH_DIR = os.environ.get("TMPDIR", "/tmp").rstrip("/")
+
 # OMC environment
 SUPPORT_PATH = os.environ.get("OMC_OMC_SUPPORT_PATH", "")
 APP_BUNDLE = os.environ.get("OMC_APP_BUNDLE_PATH", "")
@@ -125,7 +131,7 @@ ID_GROUP_PANE = 502
 
 DEBUG = False
 
-LOG = "/tmp/icedit_debug.log"
+LOG = f"{SCRATCH_DIR}/icedit_debug.log"
 def log(msg):
     if DEBUG:
         with open(LOG, "a") as f:
@@ -375,8 +381,8 @@ def render_preview(icon_path, platform="macOS", target_uuid=None):
     slot_key = f"icedit_preview_slot_{uuid}"
     cur_slot = int(pb_get(slot_key) or "0")
     new_slot = 1 - cur_slot
-    png_path = f"/tmp/icedit_preview_{uuid}_{new_slot}.png"
-    old_path = f"/tmp/icedit_preview_{uuid}_{cur_slot}.png"
+    png_path = f"{SCRATCH_DIR}/icedit_preview_{uuid}_{new_slot}.png"
+    old_path = f"{SCRATCH_DIR}/icedit_preview_{uuid}_{cur_slot}.png"
 
     result = subprocess.run([
         ICTOOL, icon_path,
@@ -514,7 +520,7 @@ def create_working_copy(original_path):
     """Copy original .icon bundle to a temp working directory.
     Returns the path to the working copy."""
     import shutil
-    work_dir = f"/tmp/icedit_work_{WINDOW_UUID}"
+    work_dir = f"{SCRATCH_DIR}/icedit_work_{WINDOW_UUID}"
     work_icon = os.path.join(work_dir, os.path.basename(original_path))
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
@@ -527,7 +533,7 @@ def create_new_icon():
     """Create a new empty .icon bundle with default background fill.
     Uses icedit tool's create command. Returns the path to the working copy."""
     import shutil
-    work_dir = f"/tmp/icedit_work_{WINDOW_UUID}"
+    work_dir = f"{SCRATCH_DIR}/icedit_work_{WINDOW_UUID}"
     work_icon = os.path.join(work_dir, "Untitled.icon")
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
@@ -555,18 +561,18 @@ def cleanup_state():
     """Clean up all pasteboard, temp files, and state for this window."""
     import shutil
     import glob as _glob
-    work_dir = f"/tmp/icedit_work_{WINDOW_UUID}"
+    work_dir = f"{SCRATCH_DIR}/icedit_work_{WINDOW_UUID}"
     if os.path.exists(work_dir):
         shutil.rmtree(work_dir)
     # Remove preview PNGs for this window
-    for f in _glob.glob(f"/tmp/icedit_preview_{WINDOW_UUID}_*.png"):
+    for f in _glob.glob(f"{SCRATCH_DIR}/icedit_preview_{WINDOW_UUID}_*.png"):
         try:
             os.remove(f)
         except OSError:
             pass
     # Remove SF Symbol / Material Symbol SVGs for this window
-    for svg in (f"/tmp/icedit_sfsymbol_{WINDOW_UUID}.svg",
-                f"/tmp/icedit_matsymbol_{WINDOW_UUID}.svg"):
+    for svg in (f"{SCRATCH_DIR}/icedit_sfsymbol_{WINDOW_UUID}.svg",
+                f"{SCRATCH_DIR}/icedit_matsymbol_{WINDOW_UUID}.svg"):
         if os.path.isfile(svg):
             try:
                 os.remove(svg)

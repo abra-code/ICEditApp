@@ -22,7 +22,7 @@ if not symbol:
     )
     sys.exit(0)
 
-svg_path = f"/tmp/icedit_matsymbol_{MATERIAL_UUID}.svg"
+svg_path = f"{SCRATCH_DIR}/icedit_matsymbol_{MATERIAL_UUID}.svg"
 if not os.path.isfile(svg_path):
     subprocess.run(
         [DIALOG_TOOL, MATERIAL_UUID, "3", "No SVG rendered — select a symbol first"],

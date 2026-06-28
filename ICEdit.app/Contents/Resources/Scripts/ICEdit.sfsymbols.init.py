@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 DEBUG = False
-LOG = "/tmp/icedit_debug.log"
+LOG = os.environ.get("TMPDIR", "/tmp").rstrip("/") + "/icedit_debug.log"
 def log(msg):
     if DEBUG:
         with open(LOG, "a") as f:

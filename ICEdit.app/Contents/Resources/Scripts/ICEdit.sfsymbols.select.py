@@ -23,8 +23,9 @@ if not symbol:
 # Get weight
 weight = os.environ.get("OMC_ACTIONUI_VIEW_11_VALUE", "regular") or "regular"
 
-# Render SVG
-svg_path = f"/tmp/icedit_sfsymbol_{WINDOW_UUID}.svg"
+# Render SVG ($TMPDIR scratch, shared with the add handler / lib_icedit cleanup)
+SCRATCH_DIR = os.environ.get("TMPDIR", "/tmp").rstrip("/")
+svg_path = f"{SCRATCH_DIR}/icedit_sfsymbol_{WINDOW_UUID}.svg"
 result = subprocess.run(
     [GLYPHSVG, symbol, weight, "768", f"--output={svg_path}"],
     capture_output=True, text=True

@@ -174,7 +174,7 @@
                     "text": "",
                     "font": "caption",
                     "padding": { "leading": 16, "bottom": 0 },
-                    "foregroundColor": "secondary"
+                    "foregroundStyle": "secondary"
                   }
                 },
                 { "type": "Spacer" },

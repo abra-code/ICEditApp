@@ -43,7 +43,7 @@
           "properties": {
             "text": "",
             "font": "caption",
-            "foregroundColor": "secondary",
+            "foregroundStyle": "secondary",
             "padding": { "top": 4.0, "bottom": 4.0, "leading": 8.0 }
           }
         }

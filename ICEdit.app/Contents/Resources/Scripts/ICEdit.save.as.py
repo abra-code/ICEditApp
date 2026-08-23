@@ -39,7 +39,17 @@ if dest:
         set_status(f"Saved {os.path.basename(dest)}")
 else:
     if closing:
-        cleanup_state()
+        # Same rule as ICEdit.window.close: a save the user asked for that did
+        # not happen must not take the working copy with it. The window is
+        # closing, so an alert is the only thing that can reach them.
+        subprocess.run([
+                ALERT_TOOL,
+                "--level", "critical",
+                "--title", "Could Not Save",
+                "--ok", "OK",
+                f"The icon could not be saved to \u201c{os.path.basename(dest_path)}\u201d, "
+                f"so the changes have been left in:\n\n{get_icon_path()}"
+        ], capture_output=False)
     else:
         set_status("Save failed")
 

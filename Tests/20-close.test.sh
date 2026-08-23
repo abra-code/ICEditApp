@@ -76,75 +76,78 @@ check_absent "the working copy went away anyway" "$work_copy"
 check "and so did the state"                  ""            "$(work_icon)"
 check "the closing flag was cleared"          ""            "$(close_after_save)"
 
-section "4. KNOWN DEFECT: every other close path leaks the working copy"
-# ICEdit.window.close only ever calls cleanup_state() inside the "if is_dirty()"
-# block, and inside that block only on the Save branch. So the two commonest
-# closes there are - a document with no unsaved changes, and a Don't Save -
-# return without releasing anything.
+section "4. every close path releases the window's state"
+# ICEdit.window.close used to call cleanup_state() only inside "if is_dirty()"
+# and inside that only on the Save branch, so the two commonest closes there are
+# - a document with no unsaved changes, and a Don't Save - returned without
+# releasing anything. Per closed window that left the working copy directory
+# under $TMPDIR (a full recursive copy of the .icon bundle, megabytes for an
+# icon with image layers), both preview PNGs and all seven pasteboard keys, none
+# of it reclaimed until logout.
 #
-# What leaks, per closed window: the working copy directory under $TMPDIR (a
-# full recursive copy of the .icon bundle, and for an icon with image layers
-# that is megabytes), both preview PNGs, and all seven pasteboard keys. None of
-# it is reclaimed until logout.
-#
-# The checks below assert the leak as it stands TODAY. They are deliberately
-# written so that fixing it turns this section red and names itself, rather than
-# leaving a fix silently uncovered. The fix is to lift cleanup_state() out to
-# the end of the handler so it runs on every path except the chain-to-Save-As
-# one, which hands the responsibility to save.as. When that lands, replace this
-# section with the check_absent form used in sections 1 to 3.
-section "4a. closing a clean document leaks it"
+# cleanup_state() now runs at the end of the handler on every path except the
+# one that chains to Save As, which hands the responsibility on (section 2).
+# Each artifact is named separately below rather than rolled into one "did it
+# clean up", so a partial regression is distinguishable from a whole one.
+section "4a. closing a clean document releases it"
 sample="$(open_sample)"
 work_copy="$(work_icon)"
+preview="$(ui_value $ID_PREVIEW)"
+check "there is something to release"         "yes"         "$([ -d "$work_copy" ] && [ -f "$preview" ] && echo yes || echo no)"
 omc_run ICEdit.window.close
 check_status "the handler succeeded"          0
 check "nothing was asked, correctly"          "0"           "$(alerts_count)"
-# Named one artifact at a time rather than as a single "did it clean up": a
-# partial fix that removes the directory and forgets the pasteboard, or the
-# other way round, has to be distinguishable from no fix at all.
-check "DEFECT: the working copy survives"     "yes"         "$([ -d "$work_copy" ] && echo yes || echo no)"
-check "DEFECT: and its whole directory"       "yes"         "$([ -d "$(work_dir)" ] && echo yes || echo no)"
-check "DEFECT: so does the rendered preview"  "yes"         "$([ -f "$(ui_value $ID_PREVIEW)" ] && echo yes || echo no)"
-check "DEFECT: the state is still set"        "$work_copy"  "$(work_icon)"
-check "DEFECT: so is the original"            "$sample"     "$(original)"
-check "DEFECT: and so is the fingerprint"     "yes"         "$([ -n "$(original_hash)" ] && echo yes || echo no)"
+check_absent "the working copy is gone"       "$work_copy"
+check_absent "and its whole directory"        "$(work_dir)"
+check_absent "so is the rendered preview"     "$preview"
+check "the state was released"                ""            "$(work_icon)"
+check "including the original"                ""            "$(original)"
+check "and the fingerprint"                   ""            "$(original_hash)"
+# The document on disk is not part of what a close releases.
+check_exists "the document itself survives"   "$sample/icon.json"
 
-section "4b. Don't Save discards the edit but leaks it too"
+section "4b. Don't Save discards the edit and releases the window"
 sample="$(open_sample)"
 dirty_the_document
 work_copy="$(work_icon)"
 # This applet wires the alert's Cancel slot to "Don't Save", so 1 discards.
 alert_answer 1
 omc_run ICEdit.window.close
-check "the user was asked"                    "1"           "$(alerts_count)"
-# The one thing this path gets right, and the important one: a discarded edit
-# must not reach the disk. Two layers is the fixture's own shape.
-check "the edit did not reach the disk"       "2"           "$(icon_layer_count "$sample")"
-check "DEFECT: the working copy survives"     "yes"         "$([ -d "$work_copy" ] && echo yes || echo no)"
-check "DEFECT: with the discarded edit in it" "3"           "$(icon_layer_count "$work_copy")"
-check "DEFECT: still flagged dirty"           "1"           "$(dirty)"
-
-section "4c. an alert that never reached the user is read as Don't Save"
-# ICEdit.window.close.py tests "if r.returncode == 0" and treats everything else
-# as Don't Save, so 2 (Other), 3 (timed out) and 255 (failed to display) all
-# discard. Today that is harmless by accident - nothing is discarded because
-# nothing is cleaned up - but the moment section 4's leak is fixed the obvious
-# way, a close whose alert timed out silently throws the user's edit away with
-# no window ever having appeared. Pinned now, while the fix is still ahead.
-open_sample > /dev/null
-dirty_the_document
-work_copy="$(work_icon)"
-alerts_reset
-alert_answers_reset
-alert_answer 3
-omc_run ICEdit.window.close
 check_status "the handler succeeded"          0
-check "the alert was raised"                  "1"           "$(alerts_count)"
-check "nothing was saved"                     "1"           "$(dirty)"
-# The same three artifacts as 4a and 4b: this path is Don't Save by another
-# name, and it leaks exactly as Don't Save does.
-check "DEFECT: the working copy survives"     "yes"         "$([ -d "$work_copy" ] && echo yes || echo no)"
-check "DEFECT: with the edit still in it"     "3"           "$(icon_layer_count "$work_copy")"
+check "the user was asked"                    "1"           "$(alerts_count)"
+# The important half: a discarded edit must not reach the disk. Two layers is
+# the fixture's own shape, and section 1 is the positive control where a Save
+# makes the same oracle read three.
+check "the edit did not reach the disk"       "2"           "$(icon_layer_count "$sample")"
+check_absent "and it did not stay in $TMPDIR" "$work_copy"
+check "the state was released"                ""            "$(work_icon)"
+check "including the dirty flag"              ""            "$(dirty)"
+
+section "4c. an alert that never reached the user is not permission to discard"
+# The handler tests one return code, and everything else falls to the other
+# branch - so the question is which way round. The alert tool answers 3 when it
+# timed out and 255 when it could not be displayed at all, and neither means the
+# user chose anything. Reading those as Don't Save would throw an edit away with
+# no window ever having appeared, so only the explicit Cancel slot discards and
+# every other answer saves.
+#
+# Harmless before the leak was fixed, because nothing was discarded and nothing
+# was cleaned up either. It became real the moment cleanup_state started running
+# on that path.
+for unanswered in 3 255; do
+    sample="$(open_sample)"
+    dirty_the_document
+    work_copy="$(work_icon)"
+    alerts_reset
+    alert_answers_reset
+    alert_answer "$unanswered"
+    omc_run ICEdit.window.close
+    check_status "rc $unanswered: the handler succeeded" 0
+    check "rc $unanswered: the alert was raised"  "1"       "$(alerts_count)"
+    check "rc $unanswered: the edit was SAVED, not dropped" "3" "$(icon_layer_count "$sample")"
+    check "rc $unanswered: the document is clean" ""        "$(dirty)"
+    check_absent "rc $unanswered: and the window was released" "$work_copy"
+done
 
 section "5. activating a window whose file has not changed does nothing"
 open_sample > /dev/null

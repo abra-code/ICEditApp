@@ -117,6 +117,11 @@ check "the fingerprint was refreshed"       "no"            "$([ "$(original_has
 check "the status line confirms it"         "Saved Sample.icon" "$(ui_value $ID_STATUS)"
 # Save must not raise a dialog when it already knows where the document lives.
 check "no Save As was needed"               "0"             "$(chain_asked ICEdit.save.as)"
+# The successful counterpart of section 15's check: the write goes through two
+# temporary directories beside the document - one holding the new bundle, one
+# holding the old - and a save that worked must leave neither behind.
+check "no staging directory was left behind" "0" \
+    "$(/bin/ls "$OMCTEST_WORK" | /usr/bin/grep -c 'icedit-')"
 
 section "7. Save on a never-saved document chains to Save As"
 reset_document
@@ -245,27 +250,16 @@ check_absent "and the old working copy went" "$old_work"
 check "leaving exactly one document behind" "1" \
     "$(/bin/ls "$(work_dir)" | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
 
-section "15. KNOWN DEFECT: Save destroys the document if the working copy is gone"
-# lib_icedit.save_icon_to removes the destination BEFORE it copies:
+section "15. Save refuses when the working copy has vanished"
+# $TMPDIR is swept on reboot and by tmp cleaners while the pasteboard entry that
+# names the working copy outlives the files, so a window left open across a
+# sweep is a live document whose working copy is gone. Save must refuse.
 #
-#     if os.path.exists(dest_path):
-#         shutil.rmtree(dest_path)
-#     shutil.copytree(work_icon, dest_path)
-#
-# and the only guard above it is "if not work_icon", which tests the pasteboard
-# STRING, not whether the directory it names is still there. $TMPDIR is swept on
-# reboot and by tmp cleaners, and the pasteboard entry outlives the files - so a
-# window left open across a sweep is a live document whose working copy no
-# longer exists. Pressing Save then deletes the user's .icon bundle and raises
-# on the copytree that was supposed to replace it.
-#
-# The document is not corrupted, it is GONE, and the status line still shows the
-# previous message, so the first the user knows of it is an empty Finder window.
-# This is the worst thing in the applet.
-#
-# The fix is one line: refuse when os.path.isdir(work_icon) is false, the way
-# every other handler tests the paths it is about to act on. Copy to a temporary
-# sibling and rename over the destination if the replace itself should be atomic.
+# It used to destroy the document instead. lib_icedit.save_icon_to removed the
+# destination before copying, guarded only by a check that the working-copy PATH
+# was a non-empty string rather than that it still existed - so Save deleted the
+# user's .icon bundle and then raised on the copytree meant to replace it. Not
+# corrupted, gone, with the status line still showing the previous message.
 sample="$(open_sample)"
 omc_dialog_answer choose_file "$(added_layer_svg)"
 omc_run ICEdit.layer.add
@@ -276,26 +270,121 @@ check_exists "and the document is on disk"  "$sample/icon.json"
 /bin/rm -rf "$(work_dir)"
 check "the applet still thinks it has one"  "yes"           "$([ -n "$(work_icon)" ] && echo yes || echo no)"
 omc_run ICEdit.save
-check_status "DEFECT: Save raises"          1
-check_absent "DEFECT: and the user's document is gone" "$sample"
-# Not merely emptied or truncated - the whole bundle directory was removed, and
-# the oracle says so rather than reporting an empty document.
-check "DEFECT: not even readable as one"    "UNREADABLE"    "$(icon_layer_count "$sample")"
-# It raised before reaching any status write, so nothing on screen changed: the
-# status line still carries the message the layer add left there.
-check "DEFECT: with nothing said about it"  "Added layer 'Local'" "$(ui_value $ID_STATUS)"
+check_status "the handler survives"         0
+check_exists "the document is still there"  "$sample/icon.json"
+# Untouched, not merely present: the two layers it had before the edit.
+check "with its contents intact"            "2"             "$(icon_layer_count "$sample")"
+check "and the assets that go with them"    "$(printf 'Circle.svg\nSquare.svg')" "$(icon_assets "$sample")"
+check "the user is told it did not work"    "Save failed"   "$(ui_value $ID_STATUS)"
+check "and the edit is still marked unsaved" "1"            "$(dirty)"
+# save_icon_to builds the new bundle in a temporary directory beside the
+# destination, so a refusal must not leave that directory behind. Matched on the
+# "icedit-" infix every one of those names carries: an anchored match on the
+# document's own name would count 1 whether or not a leftover existed, which is
+# how the first version of this check managed to assert nothing.
+check "no staging directory was left behind" "0" \
+    "$(/bin/ls "$OMCTEST_WORK" | /usr/bin/grep -c 'icedit-')"
 
-section "16. KNOWN DEFECT: a malformed icon.json crashes the open handler"
-# lib_icedit.load_icon_json calls json.load with no try, so a bundle whose
-# icon.json does not parse takes ICEdit.main down with an unhandled
-# JSONDecodeError. The handler even has a message for this case -
-# set_status("Failed to load icon.json") - but it is unreachable: the only way
-# to reach the else branch is an ABSENT icon.json, and the guard at the top of
-# main.py has already excluded that.
+section "15b. Save leaves the document whole when the write cannot even start"
+# The other half of the same fix, and the reason the write is staged rather than
+# done in place: the new bundle is built in a fresh directory beside the
+# destination and renamed over it, so a write that cannot begin never touches
+# what is already there. The old code removed the destination first and would
+# have left the user with neither copy.
 #
-# A hand-edited icon, a truncated copy, or a file from a newer Icon Composer
-# would all land here. The fix is to catch ValueError in load_icon_json and
-# return None, which is what every caller already tests for.
+# Provoked by moving the document's folder out from under it rather than by
+# making that folder unwritable. A chmod is the obvious way and is the wrong
+# one here: the harness removes the whole scratch tree with rm -rf on exit and
+# cannot unlink the children of a directory it has no write permission on, and a
+# test file cannot install its own EXIT trap to restore the mode because omctest
+# has already installed one in that shell. An interrupted run would leave an
+# un-removable tree in $TMPDIR on every run afterwards.
+holder="$OMCTEST_WORK/holder"
+/bin/rm -rf "$holder" "$OMCTEST_WORK/holder-moved"
+/bin/mkdir -p "$holder"
+sample="$(open_sample holder/Fragile.icon)"
+omc_dialog_answer choose_file "$(added_layer_svg)"
+omc_run ICEdit.layer.add
+check "the edit is in the working copy"     "3"             "$(icon_layer_count "$(work_icon)")"
+/bin/mv "$holder" "$OMCTEST_WORK/holder-moved"
+omc_run ICEdit.save
+check_status "the handler survives"         0
+check "the user is told it did not work"    "Save failed"   "$(ui_value $ID_STATUS)"
+check_exists "the document is whole where it now is" "$OMCTEST_WORK/holder-moved/Fragile.icon/icon.json"
+check "with its contents intact"            "2"             "$(icon_layer_count "$OMCTEST_WORK/holder-moved/Fragile.icon")"
+check "and the assets that go with them"    "$(printf 'Circle.svg\nSquare.svg')" \
+                                                            "$(icon_assets "$OMCTEST_WORK/holder-moved/Fragile.icon")"
+check "the edit is still in the working copy" "3"           "$(icon_layer_count "$(work_icon)")"
+check "still marked unsaved"                "1"             "$(dirty)"
+check "and nothing was recreated at the old path" "0" \
+    "$(/bin/ls "$OMCTEST_WORK" | /usr/bin/grep -c '^holder$')"
+
+section "15d. a copy that fails part way through cleans up after itself"
+# The one failure path the two sections above do not reach: 15 refuses at the
+# working-copy guard and 15b cannot even create the staging directory, so
+# neither ever starts a copy. Here the staging directory IS created and the copy
+# dies inside it, which is the case the cleanup exists for.
+#
+# Provoked by making one file inside the working copy unreadable. That is safe
+# to leave behind if this file is interrupted, unlike a chmod on a directory:
+# unlinking a file needs write permission on the directory that contains it, not
+# on the file, so the harness can still remove the scratch tree.
+sample="$(open_sample)"
+omc_dialog_answer choose_file "$(added_layer_svg)"
+omc_run ICEdit.layer.add
+unreadable="$(work_icon)/Assets/Circle.svg"
+/bin/chmod 000 "$unreadable"
+omc_run ICEdit.save
+/bin/chmod 644 "$unreadable"
+check_status "the handler survives"         0
+check "the user is told it did not work"    "Save failed"   "$(ui_value $ID_STATUS)"
+check "the document on disk is untouched"   "2"             "$(icon_layer_count "$sample")"
+check "and still has both its assets"       "$(printf 'Circle.svg\nSquare.svg')" "$(icon_assets "$sample")"
+check "the edit is still unsaved"           "1"             "$(dirty)"
+# The half-written bundle must not be left beside the document. Section 6 is the
+# positive control for the same check on a save that worked.
+check "the half-written copy was removed"   "0" \
+    "$(/bin/ls "$OMCTEST_WORK" | /usr/bin/grep -c 'icedit-')"
+
+section "15c. a save that fails while closing keeps the edit rather than dropping it"
+# The window is going away either way, but a save the user ASKED for that did
+# not happen must not take the working copy with it. ICEdit.window.close now
+# keeps the state on that path and raises a second alert naming where the work
+# is; a closing window has no status line to put it in.
+#
+# This became reachable only when save_icon_to started returning None instead of
+# raising. Before that the exception aborted the handler before cleanup_state(),
+# so the working copy survived by accident.
+/bin/rm -rf "$holder" "$OMCTEST_WORK/holder-moved"
+/bin/mkdir -p "$holder"
+sample="$(open_sample holder/Fragile.icon)"
+omc_dialog_answer choose_file "$(added_layer_svg)"
+omc_run ICEdit.layer.add
+work_copy="$(work_icon)"
+/bin/mv "$holder" "$OMCTEST_WORK/holder-moved"
+alerts_reset
+alert_answers_reset
+alert_answer 0
+omc_run ICEdit.window.close
+check_status "the handler survives"         0
+check "the user was asked about saving"     "1"             "$(alerts_mention 'Unsaved Changes')"
+check "and told the save did not happen"    "1"             "$(alerts_mention 'Could Not Save')"
+# The point of the whole section: the edit is still on disk.
+check_exists "the working copy was kept"    "$work_copy/icon.json"
+check "with the edit still in it"           "3"             "$(icon_layer_count "$work_copy")"
+check "and the alert says where to find it" "1"             "$(alerts_mention "$work_copy")"
+# Contrast with 4a in 20-close, where a close that has nothing to save releases
+# everything: keeping the state here is the exception, not the rule.
+check "the state was kept too"              "$work_copy"    "$(work_icon)"
+
+section "16. a malformed icon.json is reported rather than fatal"
+# lib_icedit.load_icon_json used to call json.load with no try, so a bundle
+# whose icon.json does not parse took ICEdit.main down with an unhandled
+# JSONDecodeError - and the handler's own message for the case,
+# set_status("Failed to load icon.json"), was unreachable, because the only
+# other route to that branch is an absent icon.json which the guard at the top
+# has already excluded. A hand-edited icon, a truncated copy or a file from a
+# newer Icon Composer all land here.
 reset_document
 malformed="$OMCTEST_WORK/Malformed.icon"
 /bin/rm -rf "$malformed"
@@ -303,13 +392,12 @@ malformed="$OMCTEST_WORK/Malformed.icon"
 printf '{ this is not json' > "$malformed/icon.json"
 omc_object "$malformed"
 omc_run ICEdit.main
-check_status "DEFECT: the handler raises"   1
-# It got far enough to adopt the document and copy it, so the window is left
-# with a working copy it cannot read and no message explaining why.
+check_status "the handler survives"         0
+check "and says what went wrong"            "Failed to load icon.json" "$(ui_value $ID_STATUS)"
+# It got far enough to adopt the document and copy it, which is what makes the
+# message the only thing the user has to go on.
 check "the document was adopted first"      "$malformed"    "$(original)"
-check "DEFECT: and nothing was said"        ""              "$(ui_value $ID_STATUS)"
-check "DEFECT: the message it has is unreachable" "0" \
-    "$(ui_calls "$ID_STATUS.Failed to load")"
+check "and no rows were invented"           ""              "$(ui_rows $ID_LAYER_LIST)"
 # The positive control that this is about the JSON and not about the bundle
 # shape: the same directory with a PARSEABLE icon.json opens normally.
 reset_document
@@ -319,6 +407,7 @@ omc_object "$malformed"
 omc_run ICEdit.main
 check_status "a parseable one opens"        0
 check "and reports itself"                  "Loaded Malformed.icon" "$(ui_value $ID_STATUS)"
+check "with its background row"             "1"             "$(ui_row_count $ID_LAYER_LIST)"
 
 section "cumulative: the window never wrote to a view id it does not declare"
 # unknown_ids.log accumulates across the whole file, so this one assertion covers

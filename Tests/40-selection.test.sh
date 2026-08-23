@@ -83,14 +83,13 @@ check "typed as the background"               "$TYPE_BG"    "$(selected_type)"
 # Remove is only meaningful for a layer, and the background is not one.
 check "Remove was disabled"                   "0"           "$(ui_enabled $ID_BTN_REMOVE)"
 check "the fill kind was read out"            "auto-gradient" "$(ui_value $ID_BG_FILL)"
-# The document stores extended-srgb floats; the ColorPicker takes hex. The
-# fixture's gradient is icedit's own encoding of #0088FF, and it comes back one
-# step short in the green channel: color_to_hex TRUNCATES rather than rounds, so
-# 0.53333 * 255 = 135.99 becomes 135 rather than 136. Display-only - both sides
-# of settings.apply's comparison truncate identically, so the value on disk does
-# not drift - but the well the user is looking at is off by one. 80-library
-# pins the truncation directly and shows the round trip failing.
-check "and converted to hex for the picker"   "#0087FF"     "$(ui_value $ID_BG_COLOR1_PICKER)"
+# The document stores extended-srgb floats; the ColorPicker takes hex, and the
+# fixture's gradient is icedit's own encoding of #0088FF - so this is a round
+# trip, and it has to land back on the value it started from. It did not until
+# color_to_hex stopped truncating: 0.53333 * 255 is 135.99, which int() turned
+# into 135, and the well showed #0087FF. 80-library section 3 pins the
+# conversion itself.
+check "and converted to hex for the picker"   "#0088FF"     "$(ui_value $ID_BG_COLOR1_PICKER)"
 check "one color well is shown"               "1"           "$(ui_visible $ID_BG_COLOR1)"
 check "the second is not"                     "0"           "$(ui_visible $ID_BG_COLOR2)"
 check "and the first is labeled plainly"      "Color"       "$(ui_value $ID_BG_COLOR1_LABEL)"
@@ -138,10 +137,10 @@ section "5. a layer that spells its keys out reads them back"
 open_explicit > /dev/null
 select_layer Mono
 check "the solid fill kind"                   "solid"       "$(ui_value $ID_LAYER_FILL)"
-# display-p3 goes through the same conversion, and shows the same truncation:
-# 0.25098 * 255 = 63.999 lands on 63 rather than 64, so the exact #4080C0 the
-# fixture encodes reads back as #3F7FBF.
-check "converted to hex"                      "#3F7FBF"     "$(ui_value $ID_LAYER_COLOR1_PICKER)"
+# display-p3 goes through the same conversion, and round-trips the same way:
+# 0.25098 * 255 is 63.999, which truncated to 63 and now rounds to 64, so the
+# #4080C0 the fixture encodes reads back as itself.
+check "converted to hex"                      "#4080C0"     "$(ui_value $ID_LAYER_COLOR1_PICKER)"
 check "one well is shown for a solid"         "1"           "$(ui_visible $ID_LAYER_COLOR1)"
 check "and only one"                          "0"           "$(ui_visible $ID_LAYER_COLOR2)"
 check "the blend mode"                        "plus-darker" "$(ui_value $ID_LAYER_BLEND)"

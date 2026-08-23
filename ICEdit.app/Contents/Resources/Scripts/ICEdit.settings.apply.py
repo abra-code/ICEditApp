@@ -259,10 +259,24 @@ if is_group:
             shadow_opacity = 0.5
         log(f"Shadow values: kind={shadow_kind}, opacity={shadow_opacity}")
 
-        old_shadow = group.get("shadow", {})
-        new_shadow = {"kind": shadow_kind, "opacity": shadow_opacity}
+        # Compared field by field against the same defaults the pane shows for
+        # a group with no shadow key, the way translucency is compared above.
+        # Comparing the two dicts whole meant a group without a shadow could
+        # never match, because {} is not {"kind": "none", "opacity": 0.5} - and
+        # those two values are the pane's OWN defaults, pushed into the
+        # controls by ICEdit.layer.select and handed straight back here. So
+        # every Apply on an untouched group wrote a shadow and dirtied the
+        # document.
+        # "or {}" and the type test rather than a plain default: a hand-edited
+        # icon.json can carry a null or a bare string here, and .get on either
+        # raises. The whole-dict compare this replaced merely came out unequal.
+        old_shadow = group.get("shadow") or {}
+        if not isinstance(old_shadow, dict):
+            old_shadow = {}
+        old_shadow_kind = old_shadow.get("kind", "none")
+        old_shadow_opacity = old_shadow.get("opacity", 0.5)
 
-        if new_shadow != old_shadow:
+        if shadow_kind != old_shadow_kind or shadow_opacity != old_shadow_opacity:
             run_icedit("set_shadow", icon_path, gi, shadow_kind, shadow_opacity)
             changed = True
 

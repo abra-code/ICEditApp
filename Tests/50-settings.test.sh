@@ -11,8 +11,8 @@
 #
 # The sections that matter most are 1, 1b and 1c: apply with nothing touched
 # must write nothing, in each of the three panes. Every other section is only
-# meaningful because those hold - and 1c does not, which is the third defect
-# this suite documents.
+# meaningful because those hold. 1c held for neither of the first two runs of
+# this suite - see its comment.
 #
 # POSIX sh only. Validate with "sh -n", never "bash -n".
 . "${OMCTEST_LIB:?set OMCTEST_LIB, or run via: appletbuilder test}"
@@ -48,44 +48,80 @@ check "the fill is byte-identical"            "$before_fill" "$(icon_fill "$(wor
 check "the document is still clean"           ""            "$(dirty)"
 check "and nothing was said about it"         "Loaded Sample.icon" "$(ui_value $ID_STATUS)"
 
-section "1c. KNOWN DEFECT: Apply on an untouched group always writes a shadow"
-# Selecting a group and pressing Apply without touching anything writes a
-# shadow into the document and marks it dirty. Every user who inspects a group
-# and hits Apply gets a modified file.
-#
-# ICEdit.settings.apply.py, the Shadow block:
+section "1c. Apply with nothing touched writes nothing in the group pane"
+# This one used to write a shadow into the document and mark it dirty every time
+# a user selected a group and pressed Apply without changing anything:
 #
 #     old_shadow = group.get("shadow", {})
 #     new_shadow = {"kind": shadow_kind, "opacity": shadow_opacity}
 #     if new_shadow != old_shadow:
 #
-# A group with no "shadow" key gives old_shadow == {}, which can never equal a
-# two-key dict - and the two values on the right are the pane's OWN defaults,
-# pushed into the controls by ICEdit.layer.select and handed straight back. So
-# the comparison is {"kind": "none", "opacity": 0.5} != {}, which is true
-# forever. The same block done right is a few lines above it: translucency is
-# compared value by value against its own default rather than as a whole dict.
-#
-# The fix is to compare the way translucency does, or to treat a missing shadow
-# as {"kind": "none", "opacity": 0.5} before comparing. The checks below assert
-# the defect as it stands; when it is fixed they turn red and name themselves,
-# and the three lines marked DEFECT become copies of section 1b's.
+# A group with no "shadow" key gives {}, which can never equal a two-key dict -
+# and the two values on the right are the pane's OWN defaults, pushed into the
+# controls by ICEdit.layer.select and handed straight back. Now compared field
+# by field against those same defaults, the way translucency already was a few
+# lines above it.
 open_sample > /dev/null
 select_group
 adopt_group_controls
 omc_run ICEdit.settings.apply
 check_status "the handler succeeded"          0
-check "DEFECT: a shadow was invented"         '{"kind":"none","opacity":0.5}' \
-                                                            "$(icon_group_key "$(work_icon)" 1 shadow)"
-check "DEFECT: and the document went dirty"   "1"           "$(dirty)"
-check "DEFECT: with an Apply nobody asked for" "Settings applied" "$(ui_value $ID_STATUS)"
-# Not part of the defect, and worth pinning separately so a fix to the shadow
-# comparison is not mistaken for a fix to something else: no OTHER group
-# property was rewritten by the same untouched Apply.
-check "but the opacity was left alone"        ""            "$(icon_group_key "$(work_icon)" 1 opacity)"
+check "no shadow was invented"                ""            "$(icon_group_key "$(work_icon)" 1 shadow)"
+check "the document is still clean"           ""            "$(dirty)"
+check "and nothing was said about it"         "Loaded Sample.icon" "$(ui_value $ID_STATUS)"
+# The rest of the pane, which never had the defect, kept alongside it so a
+# regression in any one property is named rather than lumped in with the shadow.
+check "the opacity was left alone"            ""            "$(icon_group_key "$(work_icon)" 1 opacity)"
 check "and the blend mode"                    ""            "$(icon_group_key "$(work_icon)" 1 blend-mode)"
-check "and the group is still unnamed"        ""            "$(icon_groups "$(work_icon)")"
+check "and the blur"                          ""            "$(icon_group_key "$(work_icon)" 1 blur-material)"
+check "and the translucency"                  ""            "$(icon_group_key "$(work_icon)" 1 translucency)"
+check "the group is still unnamed"            ""            "$(icon_groups "$(work_icon)")"
 check "and still visible"                     ""            "$(icon_group_key "$(work_icon)" 1 hidden-specializations)"
+# The positive control for all of that: section 17 changes the shadow for real
+# and the same reader sees it, so an empty answer here is "nothing was written"
+# rather than "this reader never works".
+
+section "1d. a group whose shadow is not a dict does not take Apply down"
+# icon.json is a file people hand-edit, and a future Icon Composer could change
+# the shape of any key. A null shadow, or a bare string, used to be harmless
+# only because the comparison was against the whole dict and simply came out
+# unequal; reading fields off it would raise. The same hazard 10-document
+# section 16 exists for, one level down.
+malformed_group="$OMCTEST_WORK/NullShadow.icon"
+/bin/rm -rf "$malformed_group"
+/bin/mkdir -p "$malformed_group/Assets"
+make_sample_svg "$malformed_group/Assets/Mark.svg" "#00FF00"
+/bin/cat > "$malformed_group/icon.json" <<'JSON'
+{
+  "fill" : "none",
+  "groups" : [
+    {
+      "shadow" : null,
+      "layers" : [ { "name" : "Mark", "image-name" : "Mark.svg" } ]
+    }
+  ],
+  "supported-platforms" : { "squares" : "shared" }
+}
+JSON
+reset_document
+omc_object "$malformed_group"
+omc_run ICEdit.main
+check_status "the document opened"            0
+select_group
+adopt_group_controls
+omc_run ICEdit.settings.apply
+check_status "and Apply survived it"          0
+# A null shadow reads as the same defaults an absent one does, so an untouched
+# Apply still writes nothing - section 1c's rule, reached by a different route.
+check "nothing was written"                   ""            "$(dirty)"
+check "and the shadow was left as it was"     "null"        "$(icon_group_key "$(work_icon)" 1 shadow)"
+# The positive control that Apply is working at all on this document, rather
+# than bailing out before it reaches the shadow.
+adopt_group_controls
+omc_control "$ID_GROUP_OPACITY" "0.25"
+omc_run ICEdit.settings.apply
+check_status "a real change still applies"    0
+check "and lands"                             "0.25"        "$(icon_group_key "$(work_icon)" 1 opacity)"
 
 section "2. renaming a layer"
 open_sample > /dev/null

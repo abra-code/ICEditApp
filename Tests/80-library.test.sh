@@ -60,24 +60,39 @@ check "a prefix with too few components"      "srgb:1.0"    "$(icedit_eval 'colo
 check "channels above one are clamped"        "#FFFFFF"     "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:2.0,3.0,4.0,1.0')"
 check "and below zero"                        "#000000"     "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:-1.0,-2.0,-3.0,1.0')"
 
-section "3. KNOWN DEFECT: color_to_hex truncates where it should round"
-# int(float * 255) discards the fraction rather than rounding it, so a channel
-# lands one step low whenever the float is not an exact multiple of 1/255 - and
-# icedit writes five decimal places, so it usually is not. 0.53333 * 255 =
-# 135.99, which becomes 135.
+section "3. color_to_hex rounds, so a color the applet wrote round-trips"
+# It used to call int(float(part) * 255), which discards the fraction rather
+# than rounding it - so a channel landed one step low whenever the float was not
+# an exact multiple of 1/255, and icedit writes five decimal places, so it
+# usually was not. 0.53333 * 255 is 135.99, which became 135: the #0088FF the
+# applet itself had written read back as #0087FF in the color well.
 #
-# The consequence is display-only today: settings.apply compares the picker's
-# value against color_to_hex of the stored one, and both sides truncate
-# identically, so the value on disk does not drift. What is wrong is the color
-# well the user is looking at, which is off by one step in each affected
-# channel. The fix is round() in place of int(); 40-selection's two hex checks
-# are the ones that will turn red when it lands.
-check "the exact value round-trips"           "#0088FF"     "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:0.0,0.533333334,1.0,1.0')"
-check "DEFECT: but icedit's own encoding does not" "#0087FF" \
+# The two values below are the same color spelled two ways: icedit's own
+# five-decimal encoding, and the exact float. Both have to reach the same hex,
+# which is what "round trip" means here and what truncation broke.
+check "icedit's own encoding round-trips"     "#0088FF" \
     "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:0.00000,0.53333,1.00000,1.00000')"
-check "DEFECT: one step low, not two"         "yes" \
-    "$(icedit_is 'int(color_to_hex(ARGV[0])[3:5], 16) == int(color_to_hex(ARGV[1])[3:5], 16) - 1' \
+check "and so does the exact float"           "#0088FF" \
+    "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:0.0,0.533333334,1.0,1.0')"
+check "the two agree"                         "yes" \
+    "$(icedit_is 'color_to_hex(ARGV[0]) == color_to_hex(ARGV[1])' \
         'extended-srgb:0.00000,0.53333,1.00000,1.00000' 'extended-srgb:0.0,0.533333334,1.0,1.0')"
+# Rounding, not merely a wider tolerance: a value genuinely below the halfway
+# point still has to go down. 0.53137 * 255 is 135.5 - 0.00001, which is 135.
+check "a value below the halfway point rounds down" "#0087FF" \
+    "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:0.0,0.53136,1.0,1.0')"
+check "and one above it rounds up"            "#0088FF" \
+    "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-srgb:0.0,0.53138,1.0,1.0')"
+# The gray and alpha conversions are separate call sites and round separately.
+# Without these two, reverting either one on its own leaves the suite green.
+check "extended-gray rounds too"              "#888888" \
+    "$(icedit_eval 'color_to_hex(ARGV[0])' 'extended-gray:0.53333,1.0')"
+check "and so does the alpha channel"         "#FF000088" \
+    "$(icedit_eval 'color_to_hex(ARGV[0])' 'srgb:1.0,0.0,0.0,0.53333')"
+# Every color the applet can write has to survive the trip, not just one. Each
+# of the 256 channel values is encoded the way icedit encodes it and read back.
+check "all 256 channel values round-trip"     "256" \
+    "$(icedit_eval 'sum(1 for v in range(256) if color_to_hex("extended-srgb:0.00000,%.5f,1.00000,1.00000" % (v / 255.0)) == "#00%02XFF" % v)')"
 
 section "4. get_layer_rows builds the table the user sees"
 # Four cells per row, and which cell carries the type is what tells a layer from

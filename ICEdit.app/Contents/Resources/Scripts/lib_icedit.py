@@ -252,12 +252,22 @@ def set_status(msg):
 
 
 def load_icon_json(icon_path):
-    """Load and parse an icon's icon.json file."""
+    """Load and parse an icon's icon.json file.
+
+    Returns None when the file is missing, unreadable, or does not parse. A
+    hand-edited icon, a truncated copy or one written by a newer Icon Composer
+    all reach the last case, and every caller already tests for None - before
+    this caught ValueError the JSONDecodeError escaped and took the whole
+    handler down, so ICEdit.main's own "Failed to load icon.json" message was
+    unreachable."""
     json_path = os.path.join(icon_path, "icon.json")
     if not os.path.isfile(json_path):
         return None
-    with open(json_path) as f:
-        return json.load(f)
+    try:
+        with open(json_path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
 
 
 def get_icon_path():
@@ -421,24 +431,28 @@ def color_to_hex(color_str):
     Supports extended-srgb:, srgb:, display-p3:, extended-gray: prefixes."""
     if not color_str:
         return ""
-    # All RGB color formats use 'prefix:R,G,B,A' with floats 0-1
+    # All RGB color formats use 'prefix:R,G,B,A' with floats 0-1.
+    # round(), not int(): truncating discards the fraction, and the icon format
+    # writes five decimal places, so a channel that is not an exact multiple of
+    # 1/255 came back one step low. 0.53333 * 255 is 135.99, which int() turned
+    # into 135, so the #0088FF the applet itself wrote read back as #0087FF.
     for prefix in ("extended-srgb:", "srgb:", "display-p3:"):
         if color_str.startswith(prefix):
             parts = color_str[len(prefix):].split(",")
             if len(parts) >= 3:
-                r = max(0, min(255, int(float(parts[0]) * 255)))
-                g = max(0, min(255, int(float(parts[1]) * 255)))
-                b = max(0, min(255, int(float(parts[2]) * 255)))
+                r = max(0, min(255, round(float(parts[0]) * 255)))
+                g = max(0, min(255, round(float(parts[1]) * 255)))
+                b = max(0, min(255, round(float(parts[2]) * 255)))
                 a = float(parts[3]) if len(parts) > 3 else 1.0
                 if a >= 1.0:
                     return f"#{r:02X}{g:02X}{b:02X}"
                 else:
-                    ai = max(0, min(255, int(a * 255)))
+                    ai = max(0, min(255, round(a * 255)))
                     return f"#{r:02X}{g:02X}{b:02X}{ai:02X}"
     if color_str.startswith("extended-gray:"):
         parts = color_str[len("extended-gray:"):].split(",")
         if len(parts) >= 1:
-            v = max(0, min(255, int(float(parts[0]) * 255)))
+            v = max(0, min(255, round(float(parts[0]) * 255)))
             return f"#{v:02X}{v:02X}{v:02X}"
     # Already hex or named color — pass through
     return color_str
@@ -544,16 +558,108 @@ def create_new_icon():
 
 def save_icon_to(dest_path):
     """Copy the working icon to a destination path.
-    Creates .icon extension if not present. Returns the final path."""
+    Creates .icon extension if not present. Returns the final path, or None if
+    nothing was written - in which case whatever was already at dest_path is
+    exactly as it was.
+
+    The destination is never removed before the replacement exists. The old code
+    did exactly that, guarded only by a check that the working-copy PATH was a
+    non-empty string rather than that it still existed, and $TMPDIR is swept on
+    reboot and by tmp cleaners while the pasteboard entry naming the working
+    copy outlives the files. So a window left open across a sweep was a live
+    document whose working copy was gone, and Save deleted the user's .icon
+    bundle and then raised on the copytree meant to replace it.
+
+    The new bundle is built in a fresh temporary directory beside the
+    destination, the existing document is moved into another one, and the new
+    bundle is renamed into place. Both renames are between siblings, so both are
+    within one filesystem and neither can half-finish. Anything that fails rolls
+    back and returns None.
+
+    Every temporary name comes from tempfile.mkdtemp rather than being a fixed
+    sibling of dest_path, and that is the important part rather than a detail.
+    A fixed name has to be cleared before it can be reused, and the one thing
+    that must never be cleared is the directory the previous document was moved
+    into: if the process dies between the two renames - force quit, power loss -
+    that directory IS the user's document, and a later Save that swept the name
+    clean would delete the only copy. Unique names are never reused, so nothing
+    ever has to be swept, and a crash leaves the document under a name that says
+    what it is instead of under one the next Save will destroy.
+
+    Clearing them is also always a rmtree of a directory this function created,
+    never of whatever happens to sit at a guessed path. rmtree raises on a file
+    or a symlink and ignore_errors swallows that, so a leftover of the wrong
+    type at a fixed name could never be removed and would block every later
+    Save to that path.
+
+    A destination that is a file or a symlink is replaced by the bundle rather
+    than refused. The old code raised on both. Replacing is what choosing an
+    existing name in a save dialog means; note that for a symlink it is the LINK
+    that is replaced, and whatever it pointed at is left alone.
+
+    The isdir check below is belt and braces: copytree scans its source before
+    it creates anything, so a missing working copy already fails before the
+    destination is touched. It stays because it states the precondition out loud
+    and logs which one failed."""
     import shutil
+    import tempfile
     if not dest_path.endswith(".icon"):
         dest_path += ".icon"
     work_icon = get_icon_path()
-    if not work_icon:
+    if not work_icon or not os.path.isdir(work_icon):
+        log(f"save_icon_to: working copy is gone: '{work_icon}'")
         return None
-    if os.path.exists(dest_path):
-        shutil.rmtree(dest_path)
-    shutil.copytree(work_icon, dest_path)
+
+    parent = os.path.dirname(dest_path) or "."
+    base = os.path.basename(dest_path)
+
+    try:
+        staging_dir = tempfile.mkdtemp(prefix=f"{base}.icedit-new-", dir=parent)
+    except OSError as err:
+        log(f"save_icon_to: could not stage beside '{dest_path}': {err}")
+        return None
+
+    staging = os.path.join(staging_dir, base)
+    try:
+        shutil.copytree(work_icon, staging)
+    except (OSError, shutil.Error) as err:
+        log(f"save_icon_to: staging copy failed: {err}")
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        return None
+
+    # lexists, not exists: a dangling symlink is still something in the way.
+    retired_dir = None
+    retired = None
+    try:
+        if os.path.lexists(dest_path):
+            retired_dir = tempfile.mkdtemp(prefix=f"{base}.icedit-old-", dir=parent)
+            retired = os.path.join(retired_dir, base)
+            os.rename(dest_path, retired)
+        os.rename(staging, dest_path)
+    except OSError as err:
+        log(f"save_icon_to: swap failed: {err}")
+        # Guarded on retired actually being there, not just on the rename
+        # having been attempted: if it was the FIRST rename that failed - the
+        # destination removed by something else between the probe above and the
+        # call - then nothing was moved, and renaming it back would raise from
+        # inside this handler and escape as an exception rather than as None.
+        # That race cannot be provoked from a test, so this line is reasoned
+        # rather than covered.
+        if retired is not None and os.path.lexists(retired) and not os.path.lexists(dest_path):
+            try:
+                os.rename(retired, dest_path)
+            except OSError as rollback_err:
+                # The document is still whole, just under the temporary name,
+                # which is why that name says what it holds.
+                log(f"save_icon_to: rollback failed, document is at '{retired}': {rollback_err}")
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        if retired_dir is not None and not os.path.lexists(retired):
+            shutil.rmtree(retired_dir, ignore_errors=True)
+        return None
+
+    shutil.rmtree(staging_dir, ignore_errors=True)
+    if retired_dir is not None:
+        shutil.rmtree(retired_dir, ignore_errors=True)
     return dest_path
 
 

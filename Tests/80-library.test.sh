@@ -179,7 +179,7 @@ check "the font's names loaded"               "yes"         "$([ "$names" -gt 10
 check "and its search metadata"               "yes" \
     "$(icedit_is 'len(lib_material.load_search_index()) > 100')"
 # The library half of the "Material Symbols not installed" branch, which is the
-# state a fresh checkout is in - download_material_symbols.sh has not run and
+# state a fresh checkout is in - update_icedit.sh has not run and
 # there is no .codepoints file. The handler half (the branch in
 # ICEdit.materialsymbols.init that puts the download instruction on screen) is
 # not reachable under test and is called out in 60-symbols' header.

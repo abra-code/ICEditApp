@@ -1,7 +1,7 @@
 """Shared helpers for the Material Symbols picker.
 
 The Material Symbols data (font, codepoints, search metadata) is fetched into
-the bundle by download_material_symbols.sh and is NOT committed to the repo.
+the bundle by update_icedit.sh and is NOT committed to the repo.
 Only the Rounded style is embedded."""
 
 import os
@@ -22,7 +22,7 @@ def load_names():
     """Return the sorted list of renderable Material Symbol names.
 
     The .codepoints file is the source of truth for what the embedded font can
-    render — each line is '<name> <hexcode>'."""
+    render - each line is '<name> <hexcode>'."""
     names = []
     if not os.path.isfile(CODEPOINTS_FILE):
         return names
@@ -63,11 +63,11 @@ def filter_names(names, search_index, search):
     whitespace-separated terms appears in its name+tags text (OR logic). Results
     are ranked by a tuple of scores, most significant first:
 
-      1. full-word name matches — terms that equal a whole word of the symbol
+      1. full-word name matches - terms that equal a whole word of the symbol
          name (words are split on '_'), so searching "car" puts "car" and
          "directions_car" above "scorecard" where "car" is only part of a word;
-      2. total matches — how many distinct terms appear anywhere in name+tags;
-      3. name matches — terms that appear in the name (vs tags only), so a
+      2. total matches - how many distinct terms appear anywhere in name+tags;
+      3. name matches - terms that appear in the name (vs tags only), so a
          name-substring match outranks a tag-only match.
 
     Within an equal score the input (alphabetical) order is preserved by the

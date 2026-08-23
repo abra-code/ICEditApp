@@ -67,13 +67,7 @@ https://fonts.google.com/icons?selected=Material+Symbols+Rounded
 
 ### Development Setup (not needed for distributed app)
 
-Material Symbols data (font, codepoints, search metadata) is not committed to the repository due to file size. Run the included script once after checkout, and again to refresh:
-
-```bash
-./download_material_symbols.sh /path/to/ICEdit.app
-```
-
-This downloads into `Contents/Helpers/glyphsvg/material/`:
+Material Symbols data (font, codepoints, search metadata) is not committed to the repository due to file size. `update_icedit.sh` fetches it into `Contents/Helpers/glyphsvg/material/` along with the rest of the helper payload (see [Development Build](#development-build)):
 
 | File | Description |
 |---|---|
@@ -81,7 +75,7 @@ This downloads into `Contents/Helpers/glyphsvg/material/`:
 | `MaterialSymbolsRounded.codepoints` | Name-to-glyph map; source of truth for the symbol list |
 | `material_symbols_metadata.json` | Tags, synonyms, and categories for richer search |
 
-Source: [google/material-design-icons](https://github.com/google/material-design-icons/tree/master/variablefont). After refreshing resources, re-sign the bundle with `codesign_applet.sh`.
+Source: [google/material-design-icons](https://github.com/google/material-design-icons/tree/master/variablefont). Which style is embedded is read from `lib_material.py`, so changing it there changes what the script downloads - but change **both** `STYLE` (which names the files) and `MATERIAL_STYLE_ARG` (which the picker passes to `glyphsvg`). The script refuses to run if the two disagree, since that combination downloads a font nothing asks for and deletes the one in use.
 
 ---
 
@@ -138,7 +132,38 @@ ICEdit uses the bundled `icedit` CLI (`Contents/Helpers/icedit/`) for all mutati
 | Helper | Location | Purpose |
 |---|---|---|
 | [icedit](https://github.com/abra-code/icedit) | `Contents/Helpers/icedit/icedit` | CLI tool for reading and mutating `.icon` bundles |
-| [glyphsvg](https://github.com/abra-code/glyphsvg) | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols to SVG at a given weight and size |
+| [glyphsvg](https://github.com/abra-code/glyphsvg) | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols and Material Symbols to SVG at a given weight and size |
+
+---
+
+## Development Build
+
+A fresh checkout does not contain a runnable app. Two scripts fill it in:
+
+| Script | Provides |
+|---|---|
+| AppletBuilder (from [OMC](https://abracode.com)) | The OMC engine: `Contents/MacOS`, `Contents/Frameworks/Abracode.framework`, `Contents/Library/Python` |
+| `./update_icedit.sh` | Everything app-specific: `Contents/Helpers` and the Material Symbols resources |
+
+`update_icedit.sh` expects the [icedit](https://github.com/abra-code/icedit) and [glyphsvg](https://github.com/abra-code/glyphsvg) repositories checked out beside this one, and offers to clone them if they are missing (interactive runs only - without a terminal it fails with instructions instead). It deploys the `icedit` CLI, builds `glyphsvg` from source (universal arm64 + x86_64), regenerates the SF Symbols map (`sfmap.plist` and the sorted `names.txt`), provisions the Material Symbols font and metadata, code-signs the bundle with `codesign_applet.sh`, and then runs each deployed helper to prove it works.
+
+```bash
+./update_icedit.sh                    # the usual full pass
+./update_icedit.sh --refresh-material # also re-fetch the Material Symbols resources
+./update_icedit.sh --help             # all options
+```
+
+The Material Symbols resources are fetched only when the deployed set is missing or unusable, since they are ~22 MB; `--refresh-material` forces a fresh download from Google. When a fetch is needed and the sibling `glyphsvg` checkout already holds all three files for the current style, they are copied from there instead - so a payload left truncated by an interrupted run repairs itself with no network access. `--refresh-material` always goes to Google and never uses that local copy.
+
+Everything is verified *before* the bundle is signed, including rendering a real glyph through the deployed `glyphsvg`, so a broken payload never gets sealed. Only the signature check and a re-launch of the signed helpers happen afterwards.
+
+The script refuses to overwrite files under `Contents/Helpers/icedit` that differ from the `icedit` repository, since the bundle copy has carried fixes that were never upstreamed. Upstream the change, or pass `--force-icedit` to discard it.
+
+Note that a normal run rewrites git-tracked files: `Contents/Helpers/glyphsvg/names.txt` and `sfmap.plist` every time, and `Contents/Helpers/icedit/*` under `--force-icedit`. Expect them in `git status` afterwards.
+
+`thin_icedit.sh` is separate and not run by `update_icedit.sh`. It thins the AppletBuilder-provided Python runtime rather than this script's payload, and it has its own two-phase `plan` / `apply` protocol with a committed plan file. The two do connect in one place: the plan is derived from ICEdit's own imports, and the analyzer treats `Contents/Helpers/icedit/icedit` as an entry point and reads the `icon_editor` package beside it. If an `icedit` update pulls in a module the old package did not use, re-run `./thin_icedit.sh plan` before the next `apply`.
+
+The test suite in `Tests/` covers the deployed payload from the app's side - the SF Symbols and Material Symbols pickers both assert their data is installed. Run it with `appletbuilder test ICEdit.app`.
 
 ---
 

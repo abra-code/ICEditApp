@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Initialize Material Symbols picker — load all symbol names into the list."""
+"""Initialize Material Symbols picker - load all symbol names into the list."""
 
 import os
 import subprocess
@@ -33,10 +33,10 @@ names = load_names()
 if not names:
     subprocess.run(
         [DIALOG_TOOL, WINDOW_UUID, str(ID_STATUS),
-         "Material Symbols not installed — run download_material_symbols.sh"],
+         "Material Symbols not installed - run update_icedit.sh"],
         capture_output=True
     )
-    log("=== no names — data not installed ===")
+    log("=== no names - data not installed ===")
     sys.exit(0)
 
 # Populate the list
@@ -53,7 +53,7 @@ subprocess.run(
     capture_output=True
 )
 
-# Default weight to Bold (heaviest available — renders well as icon layer)
+# Default weight to Bold (heaviest available - renders well as icon layer)
 subprocess.run(
     [DIALOG_TOOL, WINDOW_UUID, str(ID_WEIGHT), "bold"],
     capture_output=True

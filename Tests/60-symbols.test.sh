@@ -12,7 +12,7 @@
 # The two pickers are near-copies of each other with different data sources, and
 # they are tested as such. What differs is where the names come from: SF Symbols
 # reads a names.txt shipped in the bundle, Material Symbols reads a .codepoints
-# file that download_material_symbols.sh fetches and that is NOT in the
+# file that update_icedit.sh provisions and that is NOT in the
 # repository - so section 9 states that as a precondition rather than passing
 # quietly on a checkout that never ran the download.
 #
@@ -171,7 +171,7 @@ check "and it says so"                        "No icon open in ICEdit" "$(ui_val
 omc_leave_sheet
 
 section "9. the Material Symbols picker fills its list"
-# The font and its metadata are fetched by download_material_symbols.sh and are
+# The font and its metadata are provisioned by update_icedit.sh and are
 # deliberately not in the repository, so this is a real precondition rather than
 # a formality. Asserted here, where the data is first needed, so a checkout that
 # skipped the download fails once and says which script to run - instead of

@@ -1,0 +1,15 @@
+#!/bin/sh
+# A recording stand-in for /usr/bin/open, for Tests/70-export-install.test.sh.
+#
+# ICEdit.open.in.composer.py ends with subprocess.run(["open", "-a", ...]),
+# which is a BARE command name rather than an absolute path - so unlike the
+# system binaries the omctest guide's section 8 calls unreachable, this one can
+# be intercepted simply by putting this directory earlier in $PATH. Without it
+# every dispatch of that handler launches Icon Composer on the desktop of
+# whoever is running the suite.
+#
+# One invocation, one line, arguments tab-separated so a path containing spaces
+# is still one field.
+[ -n "$ICEDIT_OPEN_LOG" ] || { printf 'fake open: ICEDIT_OPEN_LOG is not set\n' >&2; exit 70; }
+printf '%s\n' "$(printf '%s\t' "$@")" >> "$ICEDIT_OPEN_LOG"
+exit 0

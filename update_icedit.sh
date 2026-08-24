@@ -550,6 +550,44 @@ for _tree in "$HELPERS_DIR" "$APP_SCRIPTS_DIR"; do
     /usr/bin/find "$_tree" \( -name "*.pyc" -o -name ".DS_Store" -o -name ".*.new" \) -delete
 done
 
+# ── Sweep agent droppings and empty dot-directories out of the payload ─────
+# Editor and agent tooling drops working directories such as .claude/ and .claude/.cc-writes into
+# whatever tree it happens to run in. codesign treats one as a subcomponent and refuses to seal it:
+#   In subcomponent: .../ICEdit.app/Contents/Helpers/glyphsvg/.claude
+#   error: failed to sign app bundle
+# Unlike the sweep above this covers the WHOLE bundle, because they appear wherever the tool was
+# run - Contents/ and Contents/Resources/ as readily as the two trees this script writes.
+#
+# .claude is never payload, so it goes whole, contents and all: it is an agent's working directory
+# that happened to land inside the bundle, and a non-empty one breaks signing exactly like an empty
+# one. -prune keeps find from descending into what it is about to delete.
+_claudedirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -print)
+if [ -n "$_claudedirs" ]; then
+    /usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -exec /bin/rm -rf {} +
+    echo "  ${YELLOW}Removed${RESET} agent working directories that would have broken signing:"
+    echo "$_claudedirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+fi
+
+# Any other empty dot-directory goes too. Safe here where a blanket .pyc sweep is not: an empty
+# directory carries nothing, so no payload can depend on one. -depth makes a single pass enough for
+# a nest, since children are visited first and the parent is already empty when -empty reaches it.
+_dotdirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -depth -type d -name ".*" -empty -print -delete)
+if [ -n "$_dotdirs" ]; then
+    echo "  ${YELLOW}Removed${RESET} empty dot-directories that would have broken signing:"
+    echo "$_dotdirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+fi
+
+# What is left is a dot-directory with real content in it and a name this script does not recognize
+# as droppings. It breaks signing the same way, but deleting it could throw away something the
+# operator wanted. Name it instead, so the cause is obvious here rather than in codesign's output
+# several stages later.
+_dotleft=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".*" -print)
+if [ -n "$_dotleft" ]; then
+    echo "  ${YELLOW}Warning${RESET}: dot-directories remain in the bundle and will likely fail codesign:"
+    echo "$_dotleft" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+    echo "    They hold content and are not a name this script sweeps - remove them by hand if they are droppings."
+fi
+
 # ── 4. Verify the payload ─────────────────────────────────────────────────
 # Before signing, not after. Sealing a bundle and only then finding the payload broken leaves a
 # signed, broken app on disk together with a nonzero exit - the worst of both. Everything that can

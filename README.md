@@ -1,5 +1,5 @@
 # ICEdit
-![ICEdit Icon](Icon/ICEdit-macOS-128x128@2x.png)
+![ICEdit Icon](Icon/ICEdit-macOS-256x256@1x.png)
 
 A native macOS icon editor for Apple's `.icon` bundle format used by Icon Composer. ICEdit provides a graphical interface for creating and editing macOS app icons — managing layers, groups, fills, effects, and compositing — and can compile and install icons directly into app bundles.
 

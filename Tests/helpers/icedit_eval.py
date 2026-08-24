@@ -36,6 +36,8 @@ sys.path.insert(0, os.path.join(_BUNDLE, "Contents/Resources/Scripts"))
 import lib_icedit  # noqa: E402  - the path above has to be set first
 import lib_material  # noqa: E402
 import lib_debounce  # noqa: E402
+import lib_symbolfonts  # noqa: E402
+import lib_glyphsearch  # noqa: E402
 
 
 def main(argv):
@@ -46,6 +48,8 @@ def main(argv):
     namespace["lib_icedit"] = lib_icedit
     namespace["lib_material"] = lib_material
     namespace["lib_debounce"] = lib_debounce
+    namespace["lib_symbolfonts"] = lib_symbolfonts
+    namespace["lib_glyphsearch"] = lib_glyphsearch
     namespace["ARGV"] = argv[2:]
     try:
         value = eval(argv[1], namespace)

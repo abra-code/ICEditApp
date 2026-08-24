@@ -7,6 +7,16 @@ Only the Rounded style is embedded."""
 import os
 import json
 
+# Ranking lives in lib_glyphsearch so the Symbol Fonts picker shares one
+# implementation with this one. Re-exported: handlers here import filter_names
+# from this module.
+#
+# Not a pure code move. The shared version adds a tier above the old ones for an
+# exact whole-name match, which MDI needs and which changes the ORDER Material
+# Symbols comes back in - "home" now leads with "home" where it used to lead with
+# "add_home". Same result set, better first row; 60-symbols asserts it.
+from lib_glyphsearch import filter_names  # noqa: F401
+
 APP_BUNDLE = os.environ.get("OMC_APP_BUNDLE_PATH", "")
 MATERIAL_DIR = os.path.join(APP_BUNDLE, "Contents/Helpers/glyphsvg/material")
 GLYPHSVG = os.path.join(APP_BUNDLE, "Contents/Helpers/glyphsvg/glyphsvg")
@@ -56,37 +66,3 @@ def load_search_index():
         terms.extend(icon.get("categories", []))
         index[name] = " ".join(terms).lower()
     return index
-
-
-def filter_names(names, search_index, search):
-    """Filter and rank names by a search string. A name matches if ANY of the
-    whitespace-separated terms appears in its name+tags text (OR logic). Results
-    are ranked by a tuple of scores, most significant first:
-
-      1. full-word name matches - terms that equal a whole word of the symbol
-         name (words are split on '_'), so searching "car" puts "car" and
-         "directions_car" above "scorecard" where "car" is only part of a word;
-      2. total matches - how many distinct terms appear anywhere in name+tags;
-      3. name matches - terms that appear in the name (vs tags only), so a
-         name-substring match outranks a tag-only match.
-
-    Within an equal score the input (alphabetical) order is preserved by the
-    stable sort. Falls back to the name alone for symbols with no metadata."""
-    search = (search or "").lower().strip()
-    if not search:
-        return names
-    terms = search.split()
-    scored = []
-    for n in names:
-        name_text = n.lower()
-        name_words = name_text.replace("_", " ").split()
-        haystack = search_index.get(n, name_text)
-        rank = sum(1 for t in terms if t in haystack)
-        if rank > 0:
-            word_rank = sum(1 for t in terms if t in name_words)
-            name_rank = sum(1 for t in terms if t in name_text)
-            scored.append((word_rank, rank, name_rank, n))
-    # names arrive sorted; stable sort by descending score keeps alpha order
-    # within an equal score
-    scored.sort(key=lambda x: (-x[0], -x[1], -x[2]))
-    return [n for *_, n in scored]

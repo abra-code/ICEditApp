@@ -676,9 +676,13 @@ def cleanup_state():
             os.remove(f)
         except OSError:
             pass
-    # Remove SF Symbol / Material Symbol SVGs for this window
+    # Remove the symbol pickers' rendered SVGs for this window. The Symbol Fonts
+    # picker keeps two - the preview handler's and the add handler's, which
+    # renders its own rather than trusting the preview's.
     for svg in (f"{SCRATCH_DIR}/icedit_sfsymbol_{WINDOW_UUID}.svg",
-                f"{SCRATCH_DIR}/icedit_matsymbol_{WINDOW_UUID}.svg"):
+                f"{SCRATCH_DIR}/icedit_matsymbol_{WINDOW_UUID}.svg",
+                f"{SCRATCH_DIR}/icedit_symbolfont_preview_{WINDOW_UUID}.svg",
+                f"{SCRATCH_DIR}/icedit_symbolfont_add_{WINDOW_UUID}.svg"):
         if os.path.isfile(svg):
             try:
                 os.remove(svg)

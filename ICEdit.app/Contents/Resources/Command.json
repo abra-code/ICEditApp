@@ -191,6 +191,43 @@
             "NAME": "ICEdit"
         },
         {
+            "ACTIONUI_WINDOW": {
+                "END_OK_SUBCOMMAND_ID": "ICEdit.symbolfonts.add",
+                "INIT_SUBCOMMAND_ID": "ICEdit.symbolfonts.init",
+                "IS_BLOCKING": false,
+                "JSON_NAME": "SymbolFonts",
+                "WINDOW_TITLE": "Symbol Fonts"
+            },
+            "COMMAND_ID": "ICEdit.symbolfonts",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.symbolfonts.init",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.symbolfonts.font",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.symbolfonts.filter",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.symbolfonts.select",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
+            "COMMAND_ID": "ICEdit.symbolfonts.add",
+            "EXECUTION_MODE": "exe_script_file",
+            "NAME": "ICEdit"
+        },
+        {
             "COMMAND_ID": "ICEdit.window.activated",
             "EXECUTION_MODE": "exe_script_file",
             "NAME": "ICEdit"

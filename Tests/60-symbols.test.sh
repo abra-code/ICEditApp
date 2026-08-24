@@ -206,6 +206,28 @@ check "a concept search finds symbols"        "yes" \
 check "and not all of them"                   "yes" \
     "$([ "${tagged% symbols}" -lt "$material_count" ] && echo yes || echo no)"
 
+section "10b. the exactly typed name leads the Material results"
+# The ranking lives in lib_glyphsearch, shared with the Symbol Fonts picker.
+# Extracting it was not behavior-preserving: it gained a tier above the
+# whole-word one for an exact whole-name match, which MDI needs because breaking
+# hyphenated names into words puts the typed name in a tie hundreds long. That
+# tier changes THIS picker's order too - "home" used to lead with "add_home" -
+# so it is asserted here rather than only where it was needed.
+omc_control "$PICK_SEARCH" "home"
+omc_run ICEdit.materialsymbols.filter
+check_status "the handler succeeded"          0
+check "the exact name is first"               "home"  "$(ui_rows "$PICK_LIST" | /usr/bin/sed -n 1p)"
+# The positive control: alphabetically "add_home" precedes "home", so this is
+# not passing because the list happens to be sorted.
+check "sorted by name it would not be"        "add_home" \
+    "$(printf 'home\nadd_home\n' | /usr/bin/sort | /usr/bin/sed -n 1p)"
+omc_control "$PICK_SEARCH" "search"
+omc_run ICEdit.materialsymbols.filter
+check "and again on a second term"            "search" "$(ui_rows "$PICK_LIST" | /usr/bin/sed -n 1p)"
+check "sorted by name it would not be"        "category_search" \
+    "$(printf 'search\ncategory_search\n' | /usr/bin/sort | /usr/bin/sed -n 1p)"
+omc_control "$PICK_SEARCH" ""
+
 section "11. selecting and adding a Material Symbol"
 omc_control "$PICK_SEARCH" ""
 pick_symbol ICEdit.materialsymbols.select "home"

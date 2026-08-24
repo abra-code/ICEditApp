@@ -1,0 +1,120 @@
+{
+  "type": "HSplitView",
+  "properties": {
+    "frame": {
+      "minWidth": 700,
+      "minHeight": 500,
+      "idealWidth": 800,
+      "idealHeight": 550
+    }
+  },
+  "children": [
+    {
+      "type": "VStack",
+      "properties": {
+        "frame": {
+          "minWidth": 220,
+          "idealWidth": 280,
+          "maxWidth": 350,
+          "maxHeight": 10000
+        }
+      },
+      "children": [
+        {
+          "type": "Picker",
+          "id": 4,
+          "properties": {
+            "title": "Font",
+            "options": [
+              { "title": "No symbol fonts installed", "tag": "" }
+            ],
+            "pickerStyle": "menu",
+            "padding": { "top": 8, "leading": 8, "trailing": 8, "bottom": 0 },
+            "actionID": "ICEdit.symbolfonts.font"
+          }
+        },
+        {
+          "type": "TextField",
+          "id": 1,
+          "properties": {
+            "prompt": "Filter",
+            "padding": { "top": 8, "leading": 8, "trailing": 8, "bottom": 4 },
+            "valueChangeActionID": "ICEdit.symbolfonts.filter"
+          }
+        },
+        {
+          "type": "List",
+          "id": 2,
+          "properties": {
+            "actionID": "ICEdit.symbolfonts.select"
+          }
+        },
+        {
+          "type": "Text",
+          "id": 3,
+          "properties": {
+            "text": "",
+            "font": "caption",
+            "foregroundStyle": "secondary",
+            "padding": { "top": 4, "bottom": 4, "leading": 8 }
+          }
+        }
+      ]
+    },
+    {
+      "type": "VStack",
+      "properties": {
+        "frame": {
+          "minWidth": 300,
+          "idealWidth": 400,
+          "maxHeight": 10000
+        }
+      },
+      "children": [
+        { "type": "Spacer" },
+        {
+          "type": "Image",
+          "id": 10,
+          "properties": {
+            "contentMode": "fit",
+            "systemName": "",
+            "frame": { "maxWidth": 512, "maxHeight": 512 },
+            "padding": "default"
+          }
+        },
+        { "type": "Spacer" },
+        {
+          "type": "HStack",
+          "properties": {
+            "padding": { "bottom": 12, "leading": 12, "trailing": 12 },
+            "spacing": 8
+          },
+          "children": [
+            {
+              "type": "Picker",
+              "id": 11,
+              "properties": {
+                "title": "Style",
+                "options": [
+                  { "title": "Regular", "tag": "regular" }
+                ],
+                "pickerStyle": "menu",
+                "actionID": "ICEdit.symbolfonts.select"
+              }
+            },
+            { "type": "Spacer" },
+            {
+              "type": "Button",
+              "id": 20,
+              "properties": {
+                "title": "Add Layer",
+                "buttonStyle": "borderedProminent",
+                "actionID": "ICEdit.symbolfonts.add"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

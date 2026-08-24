@@ -45,8 +45,10 @@ DO_CODESIGN="yes"
 DO_ICEDIT="yes"
 DO_GLYPHSVG="yes"
 DO_MATERIAL="yes"
+DO_SETS="yes"
 FORCE_ICEDIT="no"
 REFRESH_MATERIAL="no"
+REFRESH_SETS="no"
 APP_OVERRIDE=""
 
 SCRIPT_DIR="$(cd "$(/usr/bin/dirname "$0")" >/dev/null 2>&1 && pwd)"
@@ -58,6 +60,7 @@ ICEDIT_STATUS="skipped"
 GLYPHSVG_STATUS="skipped"
 SFSYMBOLS_STATUS="skipped"
 MATERIAL_STATUS="skipped"
+SETS_STATUS="skipped"
 CODESIGN_STATUS="skipped"
 
 WORK_DIR=""
@@ -101,8 +104,10 @@ Options:
   --skip-icedit           leave Contents/Helpers/icedit alone
   --skip-glyphsvg         leave Contents/Helpers/glyphsvg alone (binary, sfmap, names)
   --skip-material         leave Contents/Helpers/glyphsvg/material alone (no network access)
+  --skip-sets             leave Contents/Helpers/glyphsvg/sets alone (no network access)
   --force-icedit          overwrite deployed icedit files that differ from the repo
   --refresh-material      re-fetch the Material Symbols resources even if already present
+  --refresh-sets          re-fetch the symbol font sets even if already present
   --identity=CERT         signing identity ('-' for ad-hoc, the default)
   --no-codesign           skip the codesign_applet.sh step
   --help                  show this message
@@ -131,8 +136,10 @@ while [ $# -gt 0 ]; do
         --skip-icedit) DO_ICEDIT="no" ;;
         --skip-glyphsvg) DO_GLYPHSVG="no" ;;
         --skip-material) DO_MATERIAL="no" ;;
+        --skip-sets) DO_SETS="no" ;;
         --force-icedit) FORCE_ICEDIT="yes" ;;
         --refresh-material) REFRESH_MATERIAL="yes" ;;
+        --refresh-sets) REFRESH_SETS="yes" ;;
         --identity=*) SIGNING_IDENTITY="${1#*=}" ;;
         --no-codesign) DO_CODESIGN="no" ;;
         --help) show_help ;;
@@ -170,6 +177,11 @@ HELPERS_DIR="$APP_BUNDLE/Contents/Helpers"
 ICEDIT_DEST="$HELPERS_DIR/icedit"
 GLYPHSVG_DEST="$HELPERS_DIR/glyphsvg"
 MATERIAL_DEST="$GLYPHSVG_DEST/material"
+SETS_DEST="$GLYPHSVG_DEST/sets"
+
+# Which glyph sets the Symbol Fonts picker offers. Each needs a matching
+# sets/<name>/ in the glyphsvg repo; see step 3b.
+SET_NAMES="mdi fluent phosphor"
 APP_SCRIPTS_DIR="$APP_BUNDLE/Contents/Resources/Scripts"
 
 # A dependency repo is missing: offer to git-clone it into the sibling location and continue.
@@ -240,6 +252,7 @@ echo "==== Updating $(/usr/bin/basename "$APP_BUNDLE") (glyphsvg: $CONFIG) ===="
 [ "$DO_ICEDIT"   = "yes" ] && echo "  icedit    : $ICEDIT_REPO"
 [ "$DO_GLYPHSVG" = "yes" ] && echo "  glyphsvg  : $GLYPHSVG_REPO"
 [ "$DO_MATERIAL" = "yes" ] && echo "  material  : Material Symbols $MATERIAL_STYLE"
+[ "$DO_SETS" = "yes" ] && echo "  sets      : $SET_NAMES"
 echo "  deploy to : $APP_BUNDLE"
 echo
 
@@ -539,6 +552,230 @@ else
 fi
 echo
 
+# ── 3b. Symbol font sets ──────────────────────────────────────────────────
+# The generic Symbol Fonts picker renders from any glyph set in
+# Contents/Helpers/glyphsvg/sets/. Each set is a directory holding a
+# glyphset.conf manifest, its font, and the codepoint tables the manifest names.
+#
+# Unlike Material, nothing is downloaded directly here. Every set upstream
+# publishes needs converting before glyphsvg can read it - MDI ships a 3 MB
+# meta.json, Fluent ships decimal codepoints under names carrying a size and a
+# style that have to be stripped - and those converters live in the glyphsvg
+# repo as sets/<name>/download.py. Re-implementing them inline would be ~150
+# lines of duplicated Python to keep in step with the originals, so this stage
+# runs them and copies the result. That is why a set needs the repo where
+# Material does not.
+
+# Which glyphsvg to ask about a set. The deployed one first; the repo build as a
+# fallback, so a --skip-glyphsvg run against an already-built checkout still
+# validates rather than silently doing less.
+set_glyphsvg() {
+    if [ -x "$GLYPHSVG_DEST/glyphsvg" ]; then
+        echo "$GLYPHSVG_DEST/glyphsvg"
+    elif [ -n "$GLYPHSVG_REPO" ] && [ -x "$GLYPHSVG_REPO/build/bin/glyphsvg" ]; then
+        echo "$GLYPHSVG_REPO/build/bin/glyphsvg"
+    fi
+}
+
+# The files a set's manifest actually names, as absolute paths, one per line.
+#
+# Asked of glyphsvg rather than parsed here. glyphsvg's own manifest parser
+# strips a comment anywhere on the line, splits on the FIRST "=", trims both
+# sides and matches keys case-insensitively; a field-position awk script matches
+# none of that. It would accept "font=X.ttf" and "Font = X.ttf" as having no
+# font at all - and a font missing from the file list is a font that is neither
+# checked nor copied, so the set deploys without it. It would also read the "#"
+# in "face = regular F.ttf # comment" as a filename and reject a good set.
+#
+# One parser, in C, already published as --info. Two would have drifted.
+set_files() {
+    local _g="$(set_glyphsvg)"
+    [ -n "$_g" ] || return 2
+    local _faces="$("$_g" --set="$1" --info 2>/dev/null | /usr/bin/sed -n 's/^faces: //p')"
+    [ -n "$_faces" ] || return 1
+    local _face=""
+    for _face in $_faces; do
+        "$_g" --set="$1" --face="$_face" --info 2>/dev/null | /usr/bin/sed -n \
+            -e 's|^font: ||p' -e 's|^codepoints: ||p' -e 's|^metadata: ||p'
+    done | LC_ALL=C /usr/bin/sort -u
+}
+
+# Present means: glyphsvg resolves the set, and every file it names has content.
+set_present() {
+    [ -f "$1/glyphset.conf" ] || return 1
+    local _files="$(set_files "$1")"
+    [ "$?" -eq 0 ] || return 1
+    [ -n "$_files" ] || return 1
+    local _f=""
+    echo "$_files" | while IFS= read -r _f; do
+        [ -n "$_f" ] || continue
+        [ -s "$_f" ] || exit 1
+    done
+}
+
+# The render probe is the check that matters, exactly as for Material: a
+# truncated font passes `file` and a size test but CoreText refuses to load it.
+# Probed per FACE, because a set can point several faces at one font file and
+# differ only in their codepoint tables - Fluent does - so probing the default
+# alone would leave the others unverified. Returns 2 when there is no glyphsvg to
+# probe with, which is an unanswered question rather than a failure.
+set_render_probe() {
+    local _g="$(set_glyphsvg)"
+    [ -n "$_g" ] || return 2
+    local _faces="$("$_g" --set="$1" --info 2>/dev/null | /usr/bin/sed -n 's/^faces: //p')"
+    [ -n "$_faces" ] || return 1
+    local _face=""
+    for _face in $_faces; do
+        local _cp="$("$_g" --set="$1" --face="$_face" --info 2>/dev/null | /usr/bin/sed -n 's/^codepoints: //p')"
+        [ -s "$_cp" ] || return 1
+        local _sym="$(/usr/bin/head -1 "$_cp" | /usr/bin/cut -d" " -f1)"
+        [ -n "$_sym" ] || return 1
+        local _out="$WORK_DIR/setprobe.svg"
+        /bin/rm -f "$_out"
+        "$_g" --set="$1" --face="$_face" "$_sym" 64 --output="$_out" >/dev/null 2>&1
+        [ "$?" -eq 0 ] || return 1
+        [ -s "$_out" ] || return 1
+        /bin/rm -f "$_out"
+    done
+    return 0
+}
+
+set_ok() {
+    set_present "$1" || return 1
+    set_render_probe "$1"
+    case "$?" in 0|2) return 0 ;; *) return 1 ;; esac
+}
+
+set_count() {
+    local _n=0 _cp=""
+    for _cp in "$1"/*.codepoints; do
+        [ -f "$_cp" ] || continue
+        _n=$((_n + $(/usr/bin/awk 'END { print NR }' "$_cp")))
+    done
+    echo "$_n"
+}
+
+echo "── 3b. Symbol font sets ──"
+if [ "$DO_SETS" = "no" ]; then
+    echo "  Skipped (--skip-sets)"
+    SETS_STATUS="skipped (--skip-sets)"
+else
+    _sets_done=""
+    _sets_total=0
+    for _set in $SET_NAMES; do
+        _dest="$SETS_DEST/$_set"
+        # A set is only "already present" if its DEFINITION also still matches
+        # the repo's. Without this a manifest change - a face dropped, a
+        # codepoints file renamed - never reaches the bundle: the deployed files
+        # all still exist, so every structural check passes and the old layout
+        # ships. Cheap to compare, and the failure it prevents is silent.
+        _conf_current="no"
+        if [ -n "$GLYPHSVG_REPO" ] && [ -f "$GLYPHSVG_REPO/sets/$_set/glyphset.conf" ]; then
+            /usr/bin/cmp -s "$GLYPHSVG_REPO/sets/$_set/glyphset.conf" "$_dest/glyphset.conf" \
+                && _conf_current="yes"
+        else
+            _conf_current="yes"
+        fi
+        if [ "$REFRESH_SETS" = "no" ] && [ "$_conf_current" = "yes" ] && set_ok "$_dest"; then
+            _n="$(set_count "$_dest")"
+            _sets_done="$_sets_done $_set"
+            _sets_total=$((_sets_total + _n))
+            echo "  $_set: already present ($_n symbols) - re-run with --refresh-sets to update"
+            continue
+        fi
+
+        _repo_set=""
+        [ -n "$GLYPHSVG_REPO" ] && _repo_set="$GLYPHSVG_REPO/sets/$_set"
+        if [ -z "$_repo_set" ] || [ ! -f "$_repo_set/download.py" ]; then
+            fail "Cannot provision the '$_set' set: it needs the glyphsvg repo, whose sets/$_set/download.py converts the upstream data. Pass --glyphsvg-repo=PATH, or --skip-sets to leave the sets alone."
+        fi
+
+        # Populate the repo copy if it is missing or stale, then copy from it.
+        # download.py render-probes what it fetched, so a bad download fails
+        # there rather than in the bundle.
+        _need_fetch="no"
+        [ "$REFRESH_SETS" = "yes" ] && _need_fetch="yes"
+        set_present "$_repo_set" || _need_fetch="yes"
+        if [ "$_need_fetch" = "yes" ]; then
+            echo "  $_set: fetching via $_repo_set/download.py ..."
+            ( cd "$_repo_set" && ./download.py ) || fail "sets/$_set/download.py failed"
+        fi
+        set_present "$_repo_set" || fail "sets/$_set is still incomplete after running its download.py"
+
+        _staged="$WORK_DIR/sets/$_set"
+        /bin/rm -rf "$_staged"
+        /bin/mkdir -p "$_staged" || fail "Could not create $_staged"
+        /bin/cp -f "$_repo_set/glyphset.conf" "$_staged/glyphset.conf" || fail "Could not stage $_set/glyphset.conf"
+        # set_files answers with absolute paths, so the destination is taken
+        # from the basename rather than by re-joining a relative name.
+        _files="$(set_files "$_repo_set")"
+        [ -n "$_files" ] || fail "glyphsvg could not read the manifest of sets/$_set"
+        echo "$_files" | while IFS= read -r _f; do
+            [ -n "$_f" ] || continue
+            /bin/cp -f "$_f" "$_staged/$(/usr/bin/basename "$_f")" || exit 1
+        done
+        [ "$?" -eq 0 ] || fail "Could not stage the $_set payload"
+        # The license travels with the font it covers. Not listed in the
+        # manifest, so copied by name.
+        [ -s "$_repo_set/LICENSE" ] && /bin/cp -f "$_repo_set/LICENSE" "$_staged/LICENSE"
+
+        set_present "$_staged" || fail "The staged '$_set' set is incomplete. Nothing was written to the bundle."
+        set_render_probe "$_staged"
+        case "$?" in
+            0) ;;
+            2) echo "${YELLOW}  no glyphsvg to render-test '$_set' against - NOT VERIFIED${RESET}" ;;
+            *) fail "glyphsvg could not render from the staged '$_set' set - it is corrupt or truncated. Nothing was written to the bundle." ;;
+        esac
+
+        # Replace wholesale rather than merging: a set that dropped a face
+        # upstream would otherwise keep the orphaned font in the bundle, signed
+        # and shipped, with nothing pointing at it.
+        # Rename the old one aside rather than deleting it first: rm-then-mv
+        # leaves NO set at all if the run dies between the two, and a missing
+        # set is the one state the picker cannot report - it simply offers one
+        # font instead of two, and --skip-sets makes that permanent.
+        /bin/mkdir -p "$SETS_DEST" || fail "Could not create $SETS_DEST"
+        /bin/rm -rf "$_dest.new" "$_dest.old"
+        /bin/cp -R "$_staged" "$_dest.new" || fail "Could not deploy the $_set set"
+        set_present "$_dest.new" || fail "The deployed '$_set' set is incomplete - the write did not complete."
+        if [ -d "$_dest" ]; then
+            /bin/mv -f "$_dest" "$_dest.old" || fail "Could not move the old $_set set aside"
+        fi
+        /bin/mv -f "$_dest.new" "$_dest" || fail "Could not install the $_set set"
+        /bin/rm -rf "$_dest.old"
+
+        _n="$(set_count "$_dest")"
+        _sets_done="$_sets_done $_set"
+        _sets_total=$((_sets_total + _n))
+        echo "  ${GREEN}Deployed${RESET} $_set ($_n symbols):"
+        for _f in "$_dest"/*; do
+            [ -f "$_f" ] || continue
+            printf "    %-40s %s\n" "$(/usr/bin/basename "$_f")" "$(/usr/bin/du -h "$_f" | /usr/bin/cut -f1)"
+        done
+    done
+
+    # A set directory the picker would offer but this script does not know about
+    # is dead weight in the signature. Sweep it, the same way an unused Material
+    # style is swept above.
+    if [ -d "$SETS_DEST" ]; then
+        for _stale in "$SETS_DEST"/*; do
+            [ -d "$_stale" ] || continue
+            _name="$(/usr/bin/basename "$_stale")"
+            case " $SET_NAMES " in
+                *" $_name "*) ;;
+                *) /bin/rm -rf "$_stale" && echo "  removed unused set $_name" ;;
+            esac
+        done
+    fi
+
+    if [ -n "$_sets_done" ]; then
+        SETS_STATUS="$(echo $_sets_done | /usr/bin/sed 's/^ *//'), $_sets_total symbols"
+    else
+        SETS_STATUS="none"
+    fi
+fi
+echo
+
 # ── Sweep build/editor droppings out of the payload ───────────────────────
 # Python byte-code caches and .DS_Store would be sealed into the signature. Scoped to the two
 # trees this script and the app's own scripts write - NOT the whole bundle, because the embedded
@@ -642,6 +879,41 @@ elif [ "$DO_MATERIAL" = "yes" ]; then
 fi
 echo
 
+# Same reasoning as the Material check above: verified against the bundle, so the
+# --skip-sets and already-present paths are covered too. Every face is probed,
+# not just the default - Fluent points two faces at one font file and differs
+# only in the codepoint table, so a default-only probe proves nothing about the
+# other one.
+if [ -d "$SETS_DEST" ]; then
+    _any_set=""
+    for _set in $SET_NAMES; do
+        # Not a bare "continue": a set directory absent entirely is exactly what
+        # an interrupted deploy leaves behind, and skipping it would let the run
+        # report success with one font missing. Only under --skip-sets is a gap
+        # not this run's business.
+        if [ ! -d "$SETS_DEST/$_set" ]; then
+            [ "$DO_SETS" = "yes" ] \
+                && fail "The '$_set' set is missing from the bundle. A plain re-run re-provisions it."
+            continue
+        fi
+        _any_set="yes"
+        set_present "$SETS_DEST/$_set" \
+            || fail "The deployed '$_set' set is incomplete. A plain re-run re-provisions it; --refresh-sets forces a fresh download."
+        set_render_probe "$SETS_DEST/$_set"
+        case "$?" in
+            0) echo "  ${GREEN}Verify OK${RESET}: glyphsvg renders every face of '$_set' from the deployed font" ;;
+            2) echo "${YELLOW}  NOT VERIFIED${RESET}: '$_set' files are present but no glyphsvg could render-test them" ;;
+            *) fail "glyphsvg could not render from the deployed '$_set' set - it is corrupt or truncated. A plain re-run re-provisions it; --refresh-sets forces a fresh download." ;;
+        esac
+    done
+    if [ -z "$_any_set" ] && [ "$DO_SETS" = "yes" ]; then
+        fail "No symbol font sets at $SETS_DEST after the provisioning stage."
+    fi
+elif [ "$DO_SETS" = "yes" ]; then
+    fail "No symbol font sets at $SETS_DEST after the provisioning stage."
+fi
+echo
+
 # ── 5. Codesign ───────────────────────────────────────────────────────────
 # Deep-sign with codesign_applet.sh (shipped beside this script): it signs every loose Mach-O and
 # nested code bundle deepest-first - the helpers just deployed included - then the app itself,
@@ -687,6 +959,7 @@ echo "  icedit     : $ICEDIT_STATUS"
 echo "  glyphsvg   : $GLYPHSVG_STATUS"
 echo "  SF Symbols : $SFSYMBOLS_STATUS"
 echo "  material   : $MATERIAL_STATUS"
+echo "  sets       : $SETS_STATUS"
 echo "  codesign   : $CODESIGN_STATUS"
 echo
 echo "  ${GREEN}$(/usr/bin/basename "$APP_BUNDLE") is ready.${RESET}"

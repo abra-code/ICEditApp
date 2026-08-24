@@ -66,6 +66,10 @@ preview_png() { # <slot 0|1> [window-uuid, default the current window]
 # PICKER's own window uuid rather than the document's.
 sfsymbol_svg() { printf '%s/icedit_sfsymbol_%s.svg' "$(scratch_dir)" "$OMC_ACTIONUI_WINDOW_UUID"; }
 matsymbol_svg() { printf '%s/icedit_matsymbol_%s.svg' "$(scratch_dir)" "$OMC_ACTIONUI_WINDOW_UUID"; }
+# The Symbol Fonts picker keeps two renders, not one: the preview handler's, and
+# the add handler's, which renders its own rather than trusting the preview's.
+symbolfont_svg() { printf '%s/icedit_symbolfont_preview_%s.svg' "$(scratch_dir)" "$OMC_ACTIONUI_WINDOW_UUID"; }
+symbolfont_add_svg() { printf '%s/icedit_symbolfont_add_%s.svg' "$(scratch_dir)" "$OMC_ACTIONUI_WINDOW_UUID"; }
 
 # --- Per-document state, which lives entirely in the pasteboard ----------------
 #
@@ -356,6 +360,13 @@ PICK_STATUS=3
 PICK_PREVIEW=10
 PICK_WEIGHT=11
 PICK_FILL=12
+
+# The Symbol Fonts picker adds a font chooser and reuses id 11 for the face
+# rather than a weight - its fonts are static, so there is no weight axis to
+# drive. Named separately because "weight" would be a lie there, and because a
+# test asserting on id 11 should say which of the two it means.
+PICK_FONT=4
+PICK_FACE=11
 
 # The picker's list hands the chosen name to its handlers through the table
 # family, exactly as the engine does for a List element.

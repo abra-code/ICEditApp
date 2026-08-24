@@ -92,6 +92,13 @@
                     "title": "Layer with Material Symbol",
                     "actionID": "ICEdit.materialsymbols"
                   }
+                },
+                {
+                  "type": "Button",
+                  "properties": {
+                    "title": "Layer with Symbol Font...",
+                    "actionID": "ICEdit.symbolfonts"
+                  }
                 }
               ]
             },

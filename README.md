@@ -79,6 +79,37 @@ Source: [google/material-design-icons](https://github.com/google/material-design
 
 ---
 
+## Symbol Fonts
+
+The **Add Layer with Symbol Font...** menu item opens a picker over the icon fonts embedded in the bundle. Where the SF Symbols and Material Symbols pickers are each tied to one font, this one chooses its font at run time.
+
+- **Font picker** - Selects among the embedded glyph sets. The list is built from what is actually in the bundle, so it never offers a font that is not there.
+- **Filter** - Ranked search, the same ranking the Material Symbols picker uses: the exactly typed name first, then whole-word matches in the name, then partial matches, then tag-only matches. A font that publishes no tags degrades to name matching.
+- **Style picker** - Selects among that font's faces. Disabled when the font has only one.
+- **Preview** and **Add Layer** behave as in the other pickers, using `icedit add_svg --auto-scale`.
+
+Three fonts are embedded:
+
+| Set | Icons | Faces | License |
+|---|---|---|---|
+| Pictogrammers [Material Design Icons](https://pictogrammers.com/library/mdi/) | 7,188 | `regular` | Pictogrammers Free License (Apache 2.0 terms) |
+| Microsoft [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) | 2,819 outlined + 2,859 filled | `regular`, `filled` | MIT |
+| [Phosphor Icons](https://phosphoricons.com) | 1,512 in each of five | `thin`, `light`, `regular`, `bold`, `fill` | MIT |
+
+All three are static fonts with no variation axes, which is why this picker offers a face list where the Material Symbols picker offers a weight slider and a fill toggle. Fluent draws filled and outlined as separate glyphs rather than as a fill axis, so its two variants are faces sharing a single font file.
+
+**If you want a heavier stroke, use Phosphor.** App icons generally read better with more weight than a UI icon font's default, and Phosphor is the embedded family that has any: MDI ships one weight, Fluent two styles at one weight. Phosphor's five are five separate fonts, listed light to heavy, so the Style picker reads as a weight ramp. All five share the same 1,512 names, so changing weight keeps your selection. (Phosphor publishes a sixth, `duotone`, which is not bundled: its two tones are two separate glyphs, and the codepoint upstream publishes is the faint tint layer rather than the icon.)
+
+Note that both sets include brand and company logos. A permissive font license covers the artwork's copyright and grants nothing on third-party trademarks - which matters here, because an app icon is trademark use.
+
+### Development Setup (not needed for distributed app)
+
+The fonts and their codepoint maps are not committed, for the same size reason as Material Symbols. `update_icedit.sh` provisions them into `Contents/Helpers/glyphsvg/sets/<name>/`, one directory per set, each holding a `glyphset.conf` manifest naming its font and codepoint tables.
+
+Unlike the Material stage, this one needs the glyphsvg checkout: both fonts need their upstream data converted before `glyphsvg` can read it, and those converters live in the glyphsvg repo as `sets/<name>/download.py`. The script runs them and copies the result rather than duplicating the conversion. Use `--skip-sets` to leave the sets alone, `--refresh-sets` to re-fetch. Adding a font is a new `sets/<name>/` in the glyphsvg repo plus its name in `SET_NAMES` - no new dialog, scripts or commands.
+
+---
+
 ## Export
 
 **File > Export...** compiles the current icon using `actool` and writes the output to a folder you choose.
@@ -132,7 +163,7 @@ ICEdit uses the bundled `icedit` CLI (`Contents/Helpers/icedit/`) for all mutati
 | Helper | Location | Purpose |
 |---|---|---|
 | [icedit](https://github.com/abra-code/icedit) | `Contents/Helpers/icedit/icedit` | CLI tool for reading and mutating `.icon` bundles |
-| [glyphsvg](https://github.com/abra-code/glyphsvg) | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols and Material Symbols to SVG at a given weight and size |
+| [glyphsvg](https://github.com/abra-code/glyphsvg) | `Contents/Helpers/glyphsvg/glyphsvg` | Renders SF Symbols, Material Symbols and any embedded glyph set to SVG at a given weight, face and size |
 
 ---
 
@@ -169,6 +200,6 @@ The test suite in `Tests/` covers the deployed payload from the app's side - the
 
 ## Architecture
 
-ICEdit is an OMC 5.0 applet. The OMC framework handles the app lifecycle, menu commands, file/folder dialogs, and window management. The UI is defined declaratively in `ICEdit.json` and `SFSymbols.json` (ActionUI format). All business logic runs as Python 3 scripts in `Contents/Resources/Scripts/`, with shared utilities in `lib_icedit.py`.
+ICEdit is an OMC 5.0 applet. The OMC framework handles the app lifecycle, menu commands, file/folder dialogs, and window management. The UI is defined declaratively in `ICEdit.json`, `SFSymbols.json`, `MaterialSymbols.json` and `SymbolFonts.json` (ActionUI format). All business logic runs as Python 3 scripts in `Contents/Resources/Scripts/`, with shared utilities in `lib_icedit.py` and, for the symbol pickers, `lib_glyphsearch.py` (name ranking, shared by all of them) and `lib_symbolfonts.py` (glyph set discovery).
 
-Per-window state (working copy path, selected layer, dirty flag, original hash) is stored in the system pasteboard keyed by the window UUID, allowing child dialogs (SF Symbols picker) to share context with the parent document window.
+Per-window state (working copy path, selected layer, dirty flag, original hash) is stored in the system pasteboard keyed by the window UUID, allowing child dialogs (the symbol pickers) to share context with the parent document window.

@@ -33,8 +33,14 @@ def filter_names(names, search_index, search):
       2. full-word name matches - terms that equal a whole word of the symbol
          name, so searching "car" puts "car" and "directions_car" above
          "scorecard" where "car" is only part of a word;
-      3. total matches - how many distinct terms appear anywhere in name+tags;
-      4. name matches - terms that appear in the name (vs tags only), so a
+      3. full-word matches anywhere in name+tags, so searching "lock" puts the
+         padlock (tagged "lock") above every clock (tagged "clock", which merely
+         CONTAINS the term). Without this tier a text or emoji set has no
+         ranking at all: its names are single characters, so tiers 1, 2 and 4
+         all score zero for every candidate and the whole result set ties on
+         tier 5 and falls back to alphabetical order;
+      4. total matches - how many distinct terms appear anywhere in name+tags;
+      5. name matches - terms that appear in the name (vs tags only), so a
          name-substring match outranks a tag-only match.
 
     Within an equal score the input (alphabetical) order is preserved by the
@@ -52,9 +58,13 @@ def filter_names(names, search_index, search):
         if rank > 0:
             exact = 1 if name_text == search else 0
             word_rank = sum(1 for t in terms if t in words)
+            # Split the same way names are, so a hyphenated tag breaks into
+            # words too and this tier means the same thing on both sides.
+            hay_words = set(_WORD_SPLIT.split(haystack))
+            hay_word_rank = sum(1 for t in terms if t in hay_words)
             name_rank = sum(1 for t in terms if t in name_text)
-            scored.append((exact, word_rank, rank, name_rank, n))
+            scored.append((exact, word_rank, hay_word_rank, rank, name_rank, n))
     # names arrive sorted; stable sort by descending score keeps alpha order
     # within an equal score
-    scored.sort(key=lambda x: (-x[0], -x[1], -x[2], -x[3]))
+    scored.sort(key=lambda x: (-x[0], -x[1], -x[2], -x[3], -x[4]))
     return [n for *_, n in scored]

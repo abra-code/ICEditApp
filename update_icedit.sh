@@ -182,11 +182,12 @@ SETS_DEST="$GLYPHSVG_DEST/sets"
 # Which glyph sets the Symbol Fonts picker offers. Each needs a matching
 # sets/<name>/ in the glyphsvg repo; see step 3b.
 #
-# The first three are icon fonts, whose symbols are named pictograms. The last
-# four are TEXT fonts, whose symbols are characters - for putting a letter or
-# two on an app icon. Nunito, Alexandria and Monaspace Krypton carry a weight
-# axis that the picker's slider drives; Bungee is static.
-SET_NAMES="mdi fluent phosphor nunito alexandria bungee monaspace"
+# The first three are icon fonts, whose symbols are named pictograms. The rest
+# are TEXT fonts, whose symbols are characters - for putting a letter or two on
+# an app icon, or in notoemoji's case a monochrome pictograph. Nunito,
+# Alexandria, Monaspace Krypton and Noto Emoji carry a weight axis that the
+# picker's slider drives; Bungee is static.
+SET_NAMES="mdi fluent phosphor nunito alexandria bungee monaspace notoemoji"
 APP_SCRIPTS_DIR="$APP_BUNDLE/Contents/Resources/Scripts"
 
 # A dependency repo is missing: offer to git-clone it into the sibling location and continue.

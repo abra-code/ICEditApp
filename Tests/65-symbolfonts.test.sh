@@ -518,6 +518,47 @@ omc_control "$PICK_FONT_WEIGHT" "700"
 omc_control "$PICK_FONT" "mdi"
 omc_run ICEdit.symbolfonts.font
 
+section "14. an emoji set is searchable in words people actually use"
+# Unicode names are formal: the page emoji is PAGE FACING UP, so an index built
+# from names alone cannot answer "document". notoemoji's sidecar merges CLDR
+# keywords, and this asserts the DATA is there rather than that a file exists.
+#
+# emoji_hit returns yes/no for "is this character in the top six results", which
+# is the question every check below asks. Written once here because the
+# expression is long enough that six copies would hide their own differences.
+emoji_hit() { # <python-escaped-char> <search>
+    icedit_eval 'print("yes" if ARGV[0] in lib_symbolfonts.filter_names(
+        lib_symbolfonts.load_names(lib_symbolfonts.set_info("notoemoji")["codepoints"]),
+        lib_symbolfonts.load_search_index(lib_symbolfonts.set_info("notoemoji")["metadata"]),
+        ARGV[1])[:6] else "no")' "$1" "$2"
+}
+
+emoji_names="$(icedit_eval 'len(lib_symbolfonts.load_names(lib_symbolfonts.set_info("notoemoji").get("codepoints")))')"
+check "notoemoji resolved with its symbols"   "yes" \
+    "$([ "$emoji_names" -gt 1000 ] && echo yes || echo no)"
+check "and carries a search index"            "yes" \
+    "$(icedit_eval 'print("yes" if len(lib_symbolfonts.load_search_index(lib_symbolfonts.set_info("notoemoji").get("metadata"))) > 1000 else "no")')"
+
+# None of these words appears in the Unicode name of the glyph it should find -
+# PAGE FACING UP, MAGNIFYING GLASS TILTED LEFT, WASTEBASKET - so a hit can only
+# come from CLDR. These fail if the annotations stop being merged.
+check "'document' finds the page"             "yes" "$(emoji_hit "$(printf '\360\237\223\204')" document)"
+check "'search' finds the magnifier"          "yes" "$(emoji_hit "$(printf '\360\237\224\215')" search)"
+check "'trash' finds the wastebasket"         "yes" "$(emoji_hit "$(printf '\360\237\227\221')" trash)"
+
+section "14b. a whole-word tag match outranks a merely-containing one"
+# The ranking tier this set forced. Three of the four original tiers read the
+# NAME, which here is a single character with no words in it, so every candidate
+# scored identically and fell back to alphabetical: searching "lock" listed
+# clocks first, because "clock" CONTAINS "lock". Ranking a whole-word hit in the
+# tags above a substring hit is the fix.
+check "'lock' surfaces the padlock"           "yes" "$(emoji_hit "$(printf '\360\237\224\222')" lock)"
+check "and the alarm clock is pushed out"     "no"  "$(emoji_hit "$(printf '\342\217\260')" lock)"
+# The same tier in isolation, so a failure points at the ranking rather than at
+# the emoji data.
+check "a tag word beats a tag substring"      "b a" \
+    "$(icedit_eval 'print(" ".join(lib_glyphsearch.filter_names(["a","b"], {"a":"a clock","b":"b lock"}, "lock")))')"
+
 section "12. the picker wrote only where it was allowed to"
 check "no undeclared ids"                     ""            "$(ui_unknown_writes)"
 check "no bare value clobbered a table"       ""            "$(ui_suspect_writes)"

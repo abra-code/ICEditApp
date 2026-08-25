@@ -23,7 +23,15 @@ if not set_name:
 # would leave the list showing everything while the field still reads "camera".
 search = os.environ.get("OMC_ACTIONUI_VIEW_1_VALUE", "")
 
-info, face, names = apply_font(WINDOW_UUID, set_name, search=search)
+# The weight IS carried over, unlike the face. A face name means nothing outside
+# the font that declares it, but a weight is a number on a scale every font
+# shares - keeping it lets the user compare fonts at one weight. apply_font
+# clamps it into the new font's declared range, so carrying it is safe even
+# between fonts whose axes do not overlap.
+weight = os.environ.get("OMC_ACTIONUI_VIEW_12_VALUE", "")
+
+info, face, names = apply_font(WINDOW_UUID, set_name, search=search,
+                               requested_weight=weight)
 
 # The preview still shows a glyph from the previous font. Rendering the same
 # symbol from the new one is guesswork - the name usually does not exist there -

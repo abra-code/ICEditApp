@@ -12,7 +12,8 @@ from lib_icedit import *
 # two would resolve by import order alone, and a reordering would send this
 # picker's messages to the wrong window with nothing failing.
 from lib_symbolfonts import ID_STATUS as PICKER_STATUS
-from lib_symbolfonts import render_symbol, resolve_face, scratch_svg, set_info
+from lib_symbolfonts import (render_symbol, resolve_face, resolve_weight,
+                             scratch_svg, set_info)
 
 log("=== ICEdit.symbolfonts.add.py ===")
 
@@ -28,6 +29,7 @@ def decline(message):
 symbol = os.environ.get("OMC_ACTIONUI_TABLE_2_COLUMN_1_VALUE", "").strip()
 set_name = os.environ.get("OMC_ACTIONUI_VIEW_4_VALUE", "").strip()
 requested_face = os.environ.get("OMC_ACTIONUI_VIEW_11_VALUE", "").strip()
+requested_weight = os.environ.get("OMC_ACTIONUI_VIEW_12_VALUE", "").strip()
 
 if not symbol:
     decline("No symbol selected")
@@ -42,6 +44,11 @@ info = set_info(set_name)
 if not info.get("faces"):
     decline("'%s' did not resolve - re-run update_icedit.sh" % set_name)
 face = resolve_face(info, requested_face)
+face_info = info if face == info.get("face") else set_info(set_name, face)
+# Resolved from the same snapshot that names the layer, for the same reason the
+# render below is not reused from the preview: the artwork, its weight and its
+# name have to agree by construction, not by timing.
+weight = resolve_weight(face_info, requested_weight)
 
 # Rendered here rather than reused from the preview handler's file.
 #
@@ -54,7 +61,7 @@ face = resolve_face(info, requested_face)
 # Rendering from the same environment snapshot that names the layer is what makes
 # the artwork and the name agree by construction.
 svg_path = scratch_svg(PICKER_UUID, "add")
-ok, message = render_symbol(set_name, face, symbol, svg_path)
+ok, message = render_symbol(set_name, face, symbol, svg_path, weight)
 if not ok:
     decline("Cannot add '%s': %s" % (symbol, message))
 

@@ -340,6 +340,184 @@ omc_run ICEdit.symbolfonts.add
 check_status "the handler succeeded"          0
 check "and says nothing is selected"          "No symbol selected"  "$(ui_value $PICK_STATUS)"
 
+section "13. the weight slider is driven by the font's own axis"
+# The reason this control is a slider and not the Material picker's list of
+# named weights: named weights stop at black, black maps to 900, and Nunito's
+# axis runs to 1000. A fixed name list literally cannot reach the heaviest
+# weight the font has, which is the weight an app icon most often wants.
+omc_control "$PICK_FONT" "nunito"
+omc_run ICEdit.symbolfonts.font
+check_status "the handler succeeded"          0
+check "nunito really is variable"             "yes" \
+    "$(icedit_eval 'lib_symbolfonts.set_info("nunito").get("variable")')"
+check "the slider is enabled"                 "1"    "$(ui_enabled $PICK_FONT_WEIGHT)"
+# Asserted against the axis glyphsvg reports, not a literal: this keeps meaning
+# something if upstream ever reissues the font with a different range.
+# icedit_eval takes an EXPRESSION, so the two ends are read separately rather
+# than built up in one statement.
+nunito_range="$(ui_prop $PICK_FONT_WEIGHT range)"
+check "its range starts at the axis minimum"  \
+    "$(icedit_eval 'lib_symbolfonts.wght_axis(lib_symbolfonts.set_info("nunito"))[0]')" \
+    "$(icedit_eval 'json.loads(ARGV[0])["min"]' "$nunito_range")"
+check "and ends at its maximum"               \
+    "$(icedit_eval 'lib_symbolfonts.wght_axis(lib_symbolfonts.set_info("nunito"))[2]')" \
+    "$(icedit_eval 'json.loads(ARGV[0])["max"]' "$nunito_range")"
+check "it opens on the icon default"          "700"  "$(ui_value $PICK_FONT_WEIGHT)"
+check "and the label agrees"                  "Weight 700" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+adopt_window_values "$PICK_FONT_WEIGHT"
+
+section "13a. the slider is declared with the property a Slider actually fires"
+# This assertion exists because the whole suite is blind to the bug it catches.
+# ActionUI's Slider dispatches ONLY valueChangeActionID - Slider.swift reads
+# that key and nothing else - while Picker dispatches actionID. Both are legal
+# baseline properties, so a Slider carrying actionID validates, warns about
+# nothing, and silently never fires. omc_run calls handlers directly, so every
+# behavioral test below passes either way; only the document can be checked.
+#
+# The live symptom is worse than a dead control: the slider's model value still
+# changes, so VIEW_12_VALUE is current at dispatch. The preview and the label
+# would keep showing the old weight while Add committed the dragged one - the
+# artwork-disagrees-with-what-was-shown failure that 11b and 13e exist to stop.
+sf_json="$OMC_APP_BUNDLE_PATH/Contents/Resources/Base.lproj/SymbolFonts.json"
+check "the slider fires valueChangeActionID" "ICEdit.symbolfonts.select" \
+    "$(icedit_eval 'next(c for c in json.load(open(ARGV[0]))["children"][1]["children"][3]["children"] if c.get("id") == 12)["properties"].get("valueChangeActionID","")' "$sf_json")"
+check "and does not rely on actionID"        "" \
+    "$(icedit_eval 'next(c for c in json.load(open(ARGV[0]))["children"][1]["children"][3]["children"] if c.get("id") == 12)["properties"].get("actionID","")' "$sf_json")"
+
+section "13b. a static font leaves the slider inert"
+# Bungee has no wght axis. Disabled rather than hidden, for the same reason the
+# face picker is: hiding reflows the control bar on every font change.
+omc_control "$PICK_FONT" "bungee"
+omc_run ICEdit.symbolfonts.font
+check "bungee really is static"               "no" \
+    "$(icedit_eval 'lib_symbolfonts.set_info("bungee").get("variable")')"
+check "the slider is disabled"                "0"    "$(ui_enabled $PICK_FONT_WEIGHT)"
+check "and the label says so"                 "Single weight" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+# resolve_weight returning None is what keeps --weight off a static font's
+# command line, where it would mean "pick the nearest face" instead of an axis.
+check "no weight is resolved for it"          "None" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("bungee"), "700"))')"
+
+section "13c. moving the slider actually changes the artwork"
+# The oracle that matters. A slider that is wired to the handler but whose value
+# never reaches glyphsvg would pass every assertion above and render one weight
+# forever.
+omc_control "$PICK_FONT" "nunito"
+omc_run ICEdit.symbolfonts.font
+omc_control "$PICK_FONT_WEIGHT" "200"
+pick_symbol ICEdit.symbolfonts.select "Q"
+light="$(/usr/bin/shasum "$(symbolfont_svg)" | /usr/bin/cut -d" " -f1)"
+omc_control "$PICK_FONT_WEIGHT" "1000"
+pick_symbol ICEdit.symbolfonts.select "Q"
+heavy="$(/usr/bin/shasum "$(symbolfont_svg)" | /usr/bin/cut -d" " -f1)"
+check "light and heavy are different glyphs"  "differ" \
+    "$([ "$light" = "$heavy" ] && echo same || echo differ)"
+check "the label followed the slider"         "Weight 1000" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+
+section "13d. a weight is carried across a font change, and clamped to the new axis"
+# Unlike the face, which is discarded: a face name means nothing outside its own
+# font, but a weight is a number on a scale every font shares. Carrying it lets
+# one weight be compared across fonts. Clamping is what makes that safe - 1000
+# is off the end of Monaspace's axis, which stops at 800.
+check "monaspace really stops at 800"         "800.0" \
+    "$(icedit_eval 'print(lib_symbolfonts.wght_axis(lib_symbolfonts.set_info("monaspace"))[2])')"
+omc_control "$PICK_FONT" "monaspace"
+omc_run ICEdit.symbolfonts.font
+check "the slider clamped to the new maximum" "800"  "$(ui_value $PICK_FONT_WEIGHT)"
+check "and the label with it"                 "Weight 800" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+
+section "13e. the added layer carries the weight that was on screen"
+# The correctness test for the add path, and the counterpart to 11b. add.py
+# renders its own SVG rather than reusing the preview's; that protects the
+# NAME/artwork pairing. This asserts the WEIGHT pairing: an add that dropped the
+# weight and let glyphsvg fall back to the font's default would silently commit
+# ExtraLight artwork - Nunito's own default is 200 - under a heavy preview.
+omc_control "$PICK_FONT" "nunito"
+omc_run ICEdit.symbolfonts.font
+omc_control "$PICK_FONT_WEIGHT" "900"
+pick_symbol ICEdit.symbolfonts.select "Q"
+preview_900="$(/usr/bin/shasum "$(symbolfont_svg)" | /usr/bin/cut -d" " -f1)"
+pick_symbol ICEdit.symbolfonts.add "Q"
+check_status "the add succeeded"              0
+check "add rendered the same bytes as the preview" "$preview_900" \
+    "$(/usr/bin/shasum "$(symbolfont_add_svg)" | /usr/bin/cut -d" " -f1)"
+
+add_900="$(/usr/bin/shasum "$(symbolfont_add_svg)" | /usr/bin/cut -d" " -f1)"
+
+omc_control "$PICK_FONT_WEIGHT" "200"
+pick_symbol ICEdit.symbolfonts.add "Q"
+check_status "the lighter add succeeded"      0
+# Compared against the heavy ADD, not against the heavy preview. Comparing with
+# the preview would still read "differ" if add ignored the slider entirely and
+# rendered both at the font's default - the two sides would differ for the wrong
+# reason. Only add-vs-add can tell whether the slider reaches this path.
+check "and the two adds differ from each other" "differ" \
+    "$([ "$add_900" = "$(/usr/bin/shasum "$(symbolfont_add_svg)" | /usr/bin/cut -d" " -f1)" ] \
+       && echo same || echo differ)"
+
+section "13f. a slider value the dialog should never send is survived anyway"
+# resolve_weight never trusts what it is handed, for the same reason resolve_face
+# does not: the environment is a dispatch-time snapshot, and applying a new range
+# can itself dispatch this action carrying a number from the font being left.
+check "text is replaced by the default"       "700" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), "not-a-number"))')"
+check "empty is replaced by the default"      "700" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), ""))')"
+check "far too heavy clamps to the maximum"   "1000" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), "99999"))')"
+check "far too light clamps to the minimum"   "200" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), "-5"))')"
+# And the whole way through, not just in the helper: a garbage slider value must
+# still render rather than putting an error on the status line.
+check "and so is a non-finite one"            "700" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), "nan"))')"
+check "as is an infinite one"                 "700" \
+    "$(icedit_eval 'print(lib_symbolfonts.resolve_weight(lib_symbolfonts.set_info("nunito"), "inf"))')"
+# And the whole way through, not just in the helper: a garbage slider value must
+# still render rather than putting an error on the status line. check_status is
+# what stops a handler that DIED on the value from passing here - a traceback
+# would leave the status at its previous text, which starts with neither "Error"
+# nor anything else this could notice.
+omc_control "$PICK_FONT_WEIGHT" "not-a-number"
+pick_symbol ICEdit.symbolfonts.select "Q"
+check_status "the handler survived it"        0
+check "a garbage slider value still renders"  "no" \
+    "$(starts_with "$(ui_value $PICK_STATUS)" "Error:")"
+check "and the preview was written"           "yes" \
+    "$([ -s "$(symbolfont_svg)" ] && echo yes || echo no)"
+omc_control "$PICK_FONT_WEIGHT" "700"
+
+section "13g. only a slider drag is debounced"
+# A drag dispatches once per step, so the slider is debounced where a list click
+# is not. The gate is the trigger view id, which is what keeps a click instant.
+#
+# The font is set explicitly rather than inherited: a weight assertion is only
+# meaningful over a font that HAS a weight axis, and an earlier section leaving
+# a static one selected would make every check here read "Single weight" and
+# pass or fail for reasons that have nothing to do with debouncing.
+omc_control "$PICK_FONT" "nunito"
+omc_run ICEdit.symbolfonts.font
+omc_control "$PICK_FONT_WEIGHT" "500"
+omc_trigger "$PICK_FONT_WEIGHT"
+pick_symbol ICEdit.symbolfonts.select "Q"
+check_status "a debounced drag still renders" 0
+check "and updated the label"                 "Weight 500" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+check "and the preview with it"               "yes" \
+    "$([ -s "$(symbolfont_svg)" ] && echo yes || echo no)"
+
+section "13h. the weight label tracks the slider before any symbol is picked"
+# The label is the slider's only readout, so it must not sit behind the
+# no-symbol early exit - dragging on a freshly opened picker has to show
+# something.
+omc_table_cell "$PICK_LIST" 1 ""
+omc_control "$PICK_FONT_WEIGHT" "350"
+omc_run ICEdit.symbolfonts.select
+check_status "the handler succeeded"          0
+check "the label still followed"              "Weight 350" "$(ui_value $PICK_FONT_WEIGHT_LABEL)"
+omc_control "$PICK_FONT_WEIGHT" "700"
+omc_control "$PICK_FONT" "mdi"
+omc_run ICEdit.symbolfonts.font
+
 section "12. the picker wrote only where it was allowed to"
 check "no undeclared ids"                     ""            "$(ui_unknown_writes)"
 check "no bare value clobbered a table"       ""            "$(ui_suspect_writes)"

@@ -10,6 +10,7 @@ faces, font, codepoints and metadata paths as 'key: value' lines, and that is a
 published contract; re-implementing the manifest parser in Python would be a
 second thing to keep in step with the C every time the format grows."""
 
+import math
 import os
 import re
 import subprocess
@@ -175,8 +176,65 @@ def load_search_index(metadata_path):
     return index
 
 
-def render_symbol(set_name, face, symbol, out_path):
+# App icons want a heavy stroke, and a variable font's own default usually is
+# not one - Nunito and Monaspace Krypton both default to wght 200, so honoring
+# the font's default would open the picker on a hairline. 700 is the
+# conventional Bold, reads well at icon sizes, and is clamped into whatever
+# range the font actually declares.
+DEFAULT_WEIGHT = 700
+
+
+def wght_axis(info):
+    """Return (min, default, max) of the font's weight axis, or None if it has
+    no such axis. glyphsvg --info prints one line per axis:
+
+        axis: wght 200 200 1000 Weight
+
+    A static font prints none, which is what tells the dialog to offer a face
+    list instead of a weight control."""
+    for line in info.get("axes") or []:
+        parts = line.split()
+        if len(parts) >= 4 and parts[0] == "wght":
+            try:
+                return float(parts[1]), float(parts[2]), float(parts[3])
+            except ValueError:
+                return None
+    return None
+
+
+def _tidy(value):
+    """700.0 -> '700'. Keeps command lines and the on-screen label readable."""
+    return str(int(value)) if float(value).is_integer() else ("%g" % value)
+
+
+def resolve_weight(info, requested):
+    """Return the --weight argument to render with, or None for a static font.
+
+    Like resolve_face, this never trusts what the dialog handed over. The
+    environment is a dispatch-time snapshot, and changing a control's range can
+    itself dispatch an action carrying a value from the font being left behind -
+    which for a slider means a number outside the new font's axis entirely."""
+    axis = wght_axis(info)
+    if axis is None:
+        return None
+    lo, _, hi = axis
+    try:
+        value = float(requested)
+    except (TypeError, ValueError):
+        value = DEFAULT_WEIGHT
+    # float() accepts "nan" and "inf", so the except above does not catch them,
+    # and NaN would slip through the clamp untouched: every comparison against
+    # NaN is False, so min(hi, nan) is hi and max(lo, hi) is hi - garbage would
+    # silently mean "heaviest" instead of the default it means everywhere else.
+    if not math.isfinite(value):
+        value = DEFAULT_WEIGHT
+    return _tidy(max(lo, min(hi, value)))
+
+
+def render_symbol(set_name, face, symbol, out_path, weight=None):
     """Render one symbol to out_path. Returns (ok, message).
+
+    weight is the value of the font's wght axis, or None for a static font.
 
     out_path is replaced atomically. glyphsvg opens its output only after the
     glyph is serialized, so a FAILED render leaves whatever was there before -
@@ -188,7 +246,16 @@ def render_symbol(set_name, face, symbol, out_path):
     args = ["--set=" + directory]
     if face:
         args.append("--face=" + face)
-    staging = out_path + ".new"
+    # Only for a font that declares the axis. On a static family --weight means
+    # "pick the nearest face by name" instead, so passing it here would quietly
+    # re-select the face the caller just resolved.
+    if weight is not None:
+        args.append("--weight=" + str(weight))
+    # Per-process staging name. Handlers overlap - a slider drag alone can put
+    # several renders in flight - and a single shared "<out>.new" lets one
+    # handler's cleanup delete the file another is between writing and renaming,
+    # which surfaces as a spurious "wrote no readable file" error.
+    staging = "%s.%d.new" % (out_path, os.getpid())
     args += [symbol, RENDER_SIZE, "--output=" + staging]
     try:
         code, _, err = _run_glyphsvg(args)
@@ -242,7 +309,10 @@ ID_STATUS = 3
 ID_FONT = 4
 ID_PREVIEW = 10
 ID_FACE = 11
+ID_WEIGHT = 12
+ID_WEIGHT_LABEL = 13
 ID_ADD = 20
+
 
 
 def dialog(window_uuid, view_id, *args, **kwargs):
@@ -288,7 +358,40 @@ def populate_fonts(window_uuid, sets, selected=None):
     return chosen
 
 
-def apply_font(window_uuid, set_name, requested_face=None, search=""):
+def apply_weight(window_uuid, face_info, requested=None):
+    """Point the weight slider at this face's wght axis and return the value it
+    was left on, or None for a static font.
+
+    The range is set BEFORE the value. A slider whose value is written first and
+    then finds itself outside a newly applied range is one SwiftUI has to
+    resolve on its own, and the way it resolves is by dispatching this dialog's
+    render action with a number nobody chose."""
+    import json
+
+    axis = wght_axis(face_info)
+    if axis is None:
+        # Disabled rather than hidden: hiding reflows the whole control bar
+        # every time the font changes, which is the same reason the face picker
+        # is disabled rather than hidden.
+        dialog(window_uuid, ID_WEIGHT, "omc_disable")
+        dialog(window_uuid, ID_WEIGHT_LABEL, "Single weight")
+        return None
+    lo, _, hi = axis
+    weight = resolve_weight(face_info, requested)
+    dialog(window_uuid, ID_WEIGHT, "omc_set_property", "range",
+           json.dumps({"min": lo, "max": hi}))
+    dialog(window_uuid, ID_WEIGHT, weight)
+    dialog(window_uuid, ID_WEIGHT, "omc_enable")
+    set_weight_label(window_uuid, weight)
+    return weight
+
+
+def set_weight_label(window_uuid, weight):
+    dialog(window_uuid, ID_WEIGHT_LABEL, "Weight %s" % weight)
+
+
+def apply_font(window_uuid, set_name, requested_face=None, search="",
+               requested_weight=None):
     """Point the whole dialog at one font: refill the face picker, reload the
     name list, update the status line. Returns (info, face, names) where info is
     glyphsvg's --info for the resolved face, or ({}, "", []) if the set will not
@@ -310,6 +413,7 @@ def apply_font(window_uuid, set_name, requested_face=None, search=""):
     dialog(window_uuid, ID_FACE, "omc_enable" if len(faces) > 1 else "omc_disable")
 
     face_info = info if face == info.get("face") else set_info(set_name, face)
+    apply_weight(window_uuid, face_info, requested_weight)
     names = load_names(face_info.get("codepoints"))
     if search:
         index = load_search_index(face_info.get("metadata"))

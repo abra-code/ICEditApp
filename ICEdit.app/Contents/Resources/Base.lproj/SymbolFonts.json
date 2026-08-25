@@ -26,10 +26,18 @@
           "properties": {
             "title": "Font",
             "options": [
-              { "title": "No symbol fonts installed", "tag": "" }
+              {
+                "title": "No symbol fonts installed",
+                "tag": ""
+              }
             ],
             "pickerStyle": "menu",
-            "padding": { "top": 8, "leading": 8, "trailing": 8, "bottom": 0 },
+            "padding": {
+              "top": 8,
+              "leading": 8,
+              "trailing": 8,
+              "bottom": 0
+            },
             "actionID": "ICEdit.symbolfonts.font"
           }
         },
@@ -38,7 +46,12 @@
           "id": 1,
           "properties": {
             "prompt": "Filter",
-            "padding": { "top": 8, "leading": 8, "trailing": 8, "bottom": 4 },
+            "padding": {
+              "top": 8,
+              "leading": 8,
+              "trailing": 8,
+              "bottom": 4
+            },
             "valueChangeActionID": "ICEdit.symbolfonts.filter"
           }
         },
@@ -56,7 +69,11 @@
             "text": "",
             "font": "caption",
             "foregroundStyle": "secondary",
-            "padding": { "top": 4, "bottom": 4, "leading": 8 }
+            "padding": {
+              "top": 4,
+              "bottom": 4,
+              "leading": 8
+            }
           }
         }
       ]
@@ -71,22 +88,33 @@
         }
       },
       "children": [
-        { "type": "Spacer" },
+        {
+          "type": "Spacer"
+        },
         {
           "type": "Image",
           "id": 10,
           "properties": {
             "contentMode": "fit",
             "systemName": "",
-            "frame": { "maxWidth": 512, "maxHeight": 512 },
+            "frame": {
+              "maxWidth": 512,
+              "maxHeight": 512
+            },
             "padding": "default"
           }
         },
-        { "type": "Spacer" },
+        {
+          "type": "Spacer"
+        },
         {
           "type": "HStack",
           "properties": {
-            "padding": { "bottom": 12, "leading": 12, "trailing": 12 },
+            "padding": {
+              "bottom": 12,
+              "leading": 12,
+              "trailing": 12
+            },
             "spacing": 8
           },
           "children": [
@@ -96,13 +124,47 @@
               "properties": {
                 "title": "Style",
                 "options": [
-                  { "title": "Regular", "tag": "regular" }
+                  {
+                    "title": "Regular",
+                    "tag": "regular"
+                  }
                 ],
                 "pickerStyle": "menu",
                 "actionID": "ICEdit.symbolfonts.select"
               }
             },
-            { "type": "Spacer" },
+            {
+              "type": "Text",
+              "id": 13,
+              "properties": {
+                "text": "Weight 700",
+                "font": "callout",
+                "foregroundStyle": "secondary",
+                "frame": {
+                  "width": 86,
+                  "alignment": "trailing"
+                }
+              }
+            },
+            {
+              "type": "Slider",
+              "id": 12,
+              "properties": {
+                "value": 700,
+                "range": {
+                  "min": 100,
+                  "max": 900
+                },
+                "step": 50,
+                "frame": {
+                  "width": 150
+                },
+                "valueChangeActionID": "ICEdit.symbolfonts.select"
+              }
+            },
+            {
+              "type": "Spacer"
+            },
             {
               "type": "Button",
               "id": 20,

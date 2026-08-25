@@ -361,12 +361,18 @@ PICK_PREVIEW=10
 PICK_WEIGHT=11
 PICK_FILL=12
 
-# The Symbol Fonts picker adds a font chooser and reuses id 11 for the face
-# rather than a weight - its fonts are static, so there is no weight axis to
-# drive. Named separately because "weight" would be a lie there, and because a
-# test asserting on id 11 should say which of the two it means.
+# The Symbol Fonts picker adds a font chooser, and uses id 11 for the FACE where
+# the Material picker uses it for a weight. Named separately because a test
+# asserting on id 11 should say which of the two it means.
+#
+# Its weight control is a slider on id 12 rather than a picker of named weights,
+# because its text fonts carry a real wght axis: Nunito's runs to 1000, and no
+# named weight reaches past black/900. Id 13 is the label beside it. Both are
+# inert for a static font (Bungee), which is what section 13b asserts.
 PICK_FONT=4
 PICK_FACE=11
+PICK_FONT_WEIGHT=12
+PICK_FONT_WEIGHT_LABEL=13
 
 # The picker's list hands the chosen name to its handlers through the table
 # family, exactly as the engine does for a List element.

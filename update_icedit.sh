@@ -126,12 +126,15 @@ EOF
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --app=*) APP_OVERRIDE="${1#*=}" ;;
+        --app=*) APP_OVERRIDE="${1#*=}"
+            [ -n "$APP_OVERRIDE" ] || fail "--app= needs a path to an .app bundle (an unset variable in a wrapper script?)" ;;
         --config=*) CONFIG="${1#*=}" ;;
         --debug) CONFIG="debug" ;;
         --release) CONFIG="release" ;;
-        --icedit-repo=*) ICEDIT_REPO="${1#*=}" ;;
-        --glyphsvg-repo=*) GLYPHSVG_REPO="${1#*=}" ;;
+        --icedit-repo=*) ICEDIT_REPO="${1#*=}"
+            [ -n "$ICEDIT_REPO" ] || fail "--icedit-repo= needs a path to the icedit checkout (an unset variable in a wrapper script?)" ;;
+        --glyphsvg-repo=*) GLYPHSVG_REPO="${1#*=}"
+            [ -n "$GLYPHSVG_REPO" ] || fail "--glyphsvg-repo= needs a path to the glyphsvg checkout (an unset variable in a wrapper script?)" ;;
         --skip-build) DO_BUILD="no" ;;
         --skip-icedit) DO_ICEDIT="no" ;;
         --skip-glyphsvg) DO_GLYPHSVG="no" ;;
@@ -140,7 +143,8 @@ while [ $# -gt 0 ]; do
         --force-icedit) FORCE_ICEDIT="yes" ;;
         --refresh-material) REFRESH_MATERIAL="yes" ;;
         --refresh-sets) REFRESH_SETS="yes" ;;
-        --identity=*) SIGNING_IDENTITY="${1#*=}" ;;
+        --identity=*) SIGNING_IDENTITY="${1#*=}"
+            [ -n "$SIGNING_IDENTITY" ] || fail "--identity= needs a signing identity ('-' for ad-hoc) (an unset variable in a wrapper script?)" ;;
         --no-codesign) DO_CODESIGN="no" ;;
         --help) show_help ;;
         # Exit nonzero rather than falling into show_help: a typo'd flag that returns 0 having
@@ -432,16 +436,51 @@ material_validate() {
 # there is none (a --skip-glyphsvg run on a fresh checkout) it returns 2 and the caller falls back
 # to the structural checks alone.
 material_render_probe() {
-    [ -x "$GLYPHSVG_DEST/glyphsvg" ] || return 2
-    local _sym _out
-    _sym="$(/usr/bin/head -1 "$1/$MATERIAL_CODEPOINTS" | /usr/bin/cut -d" " -f1)"
-    [ -n "$_sym" ] || return 1
-    _out="$WORK_DIR/probe.svg"
-    /bin/rm -f "$_out"
-    GLYPHSVG_MATERIAL_DIR="$1" "$GLYPHSVG_DEST/glyphsvg" --material="$MATERIAL_STYLE_ARG" \
-        "$_sym" 64 --output="$_out" >/dev/null 2>&1 || return 1
-    [ -s "$_out" ] || return 1
-    return 0
+    # Prefer the deployed binary, but do not concede merely because there is none. Under
+    # --skip-glyphsvg on a checkout that has never deployed one, the repo build can still answer
+    # the question - and "unknown" is precisely what lets a truncated font through to the
+    # signature. --glyphsvg-repo=PATH steers the second candidate, so a repo the operator pointed
+    # away from is never consulted behind their back.
+    local _repo_bin="$SCRIPT_DIR/../glyphsvg/build/bin/glyphsvg"
+    [ -n "$GLYPHSVG_REPO" ] && _repo_bin="$GLYPHSVG_REPO/build/bin/glyphsvg"
+    local _bin=""
+    local _cand
+    for _cand in "$GLYPHSVG_DEST/glyphsvg" "$_repo_bin"; do
+        [ -x "$_cand" ] || continue
+        # A candidate has to prove it works before its verdict on the font is worth anything.
+        # Without this a stale build - one predating --material=, say - exits nonzero on every
+        # symbol and the caller reports a perfectly good font as corrupt, sending the operator off
+        # to re-download 22 MB that will fail in exactly the same way. Same test step 4 applies to
+        # the deployed binary: a version that starts with a digit. A binary that fails it is
+        # skipped, so the answer degrades to "unknown" and the structural checks stand in.
+        case "$("$_cand" --version 2>/dev/null | /usr/bin/head -1)" in
+            [0-9]*) _bin="$_cand"; break ;;
+        esac
+    done
+    [ -n "$_bin" ] || return 2
+    local _out="$WORK_DIR/probe.svg"
+    # Several symbols, not just the first: a name glyphsvg cannot resolve is a hard error from it
+    # ("Unknown material symbol"), so one blank or malformed line at the top of the codepoints file
+    # would otherwise condemn a perfectly good font as corrupt. What is being asked here is whether
+    # CoreText can load the font at all, and any renderable symbol answers that.
+    #
+    # continue, not break: an empty _sym means this line was blank or began with a space, which is
+    # a malformed line like any other and has to be stepped over. Reading it as end-of-file would
+    # abort the scan on the very case this loop exists for. Past the real end of the file every
+    # remaining iteration is a no-op sed, which costs four calls at most.
+    local _n=0
+    local _sym
+    while [ "$_n" -lt 5 ]; do
+        _n=$((_n + 1))
+        _sym="$(/usr/bin/sed -n "${_n}p" "$1/$MATERIAL_CODEPOINTS" | /usr/bin/cut -d" " -f1)"
+        [ -n "$_sym" ] || continue
+        /bin/rm -f "$_out"
+        if GLYPHSVG_MATERIAL_DIR="$1" "$_bin" --material="$MATERIAL_STYLE_ARG" \
+               "$_sym" 64 --output="$_out" >/dev/null 2>&1 && [ -s "$_out" ]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Both checks together: what the short-circuit below needs is "is the deployed set usable", and
@@ -470,62 +509,94 @@ else
         echo "${YELLOW}  present but not usable (corrupt or truncated) - re-provisioning${RESET}"
     fi
     _staged="$WORK_DIR/material"
-    /bin/mkdir -p "$_staged" || fail "Could not create $_staged"
     _source=""
 
     # The fast path needs the glyphsvg checkout, which --skip-glyphsvg leaves unlocated. Probe for
     # it here without the fail() the deploy stage applies: a missing repo just means the download
-    # runs instead. Skipped entirely under --refresh-material, whose whole point is to go to the
-    # upstream source rather than to a local copy of unknown age.
+    # runs instead.
     _repo_material=""
     if [ -n "$GLYPHSVG_REPO" ]; then
         _repo_material="$GLYPHSVG_REPO/material"
     elif [ -d "$SCRIPT_DIR/../glyphsvg/material" ]; then
         _repo_material="$(cd "$SCRIPT_DIR/../glyphsvg" && pwd)/material"
     fi
+    _try_repo="no"
     if [ -n "$_repo_material" ] && [ "$REFRESH_MATERIAL" = "no" ] && material_present "$_repo_material"; then
-        echo "  Copying from $_repo_material ..."
-        for _f in "$MATERIAL_TTF" "$MATERIAL_CODEPOINTS" "$MATERIAL_METADATA"; do
-            /bin/cp -f "$_repo_material/$_f" "$_staged/$_f" || fail "Could not copy $_f from $_repo_material"
-        done
-        _source="glyphsvg repo"
-    else
-        # Google publishes the variable fonts with their variation axes in the filename; the
-        # bracketed suffix has to be percent-encoded once for the raw.githubusercontent URL.
-        # The timeouts are explicit: a black-holed connection would otherwise hang a signing
-        # workflow indefinitely instead of failing.
-        BASE_URL="https://raw.githubusercontent.com/google/material-design-icons/master/variablefont"
-        AXES="FILL,GRAD,opsz,wght"
-        ENCODED_AXES="%5B${AXES//,/%2C}%5D"
-        for _ext in codepoints ttf; do
-            _url="${BASE_URL}/MaterialSymbols${MATERIAL_STYLE}${ENCODED_AXES}.${_ext}"
-            echo "  Downloading MaterialSymbols${MATERIAL_STYLE}.${_ext} ..."
-            /usr/bin/curl -fgL --retry 3 --connect-timeout 30 --max-time 900 --show-error --progress-bar \
-                -o "$_staged/MaterialSymbols${MATERIAL_STYLE}.${_ext}" "$_url" \
-                || fail "Download failed: $_url"
-        done
-        # Per-symbol tags / synonyms / categories, used for the picker's ranked search. The
-        # response carries an XSSI guard ")]}'" ahead of the JSON; drop everything before the
-        # first brace on line 1, which handles both the guard-on-its-own-line and inline forms.
-        echo "  Downloading $MATERIAL_METADATA ..."
-        META_URL="https://fonts.google.com/metadata/icons?key=material_symbols&incomplete=true"
-        /usr/bin/curl -fgL --retry 3 --connect-timeout 30 --max-time 900 --show-error --progress-bar \
-            -o "$_staged/metadata.raw" "$META_URL" \
-            || fail "Download failed: $META_URL"
-        LC_ALL=C /usr/bin/sed '1s/^[^{]*//' "$_staged/metadata.raw" > "$_staged/$MATERIAL_METADATA" \
-            || fail "Could not strip the XSSI guard from the Material Symbols metadata"
-        /bin/rm -f "$_staged/metadata.raw"
-        _source="google"
+        _try_repo="yes"
     fi
 
-    material_validate "$_staged" \
-        || fail "The staged Material Symbols files did not validate (expected a font, a '<name> <hex>' codepoints map and JSON the app can parse). Nothing was written to the bundle."
-    material_render_probe "$_staged"
-    case "$?" in
-        0) ;;
-        2) echo "${YELLOW}  no deployed glyphsvg to render-test the font against - structural checks only${RESET}" ;;
-        *) fail "glyphsvg could not render a symbol from the staged font - it is corrupt or truncated. Nothing was written to the bundle." ;;
-    esac
+    # Sources in order of preference, as a LIST rather than a single choice. The repo copy is
+    # gated only by material_present (a size check), so it can perfectly well be the corrupt one -
+    # glyphsvg's own material/download.sh still curls straight into that directory with no staging
+    # and no timeouts, which is the very failure this script was written to eliminate on the bundle
+    # side. Falling through to the download costs 22 MB; failing there would strand every checkout
+    # sitting beside a poisoned glyphsvg. --refresh-material skips the repo leg entirely, since its
+    # whole point is to go to the upstream source rather than to a local copy of unknown age.
+    for _src in repo google; do
+        if [ "$_src" = "repo" ] && [ "$_try_repo" = "no" ]; then
+            continue
+        fi
+        /bin/rm -rf "$_staged" && /bin/mkdir -p "$_staged" || fail "Could not create $_staged"
+        _why=""
+        if [ "$_src" = "repo" ]; then
+            _label="glyphsvg repo"
+            echo "  Copying from $_repo_material ..."
+            for _f in "$MATERIAL_TTF" "$MATERIAL_CODEPOINTS" "$MATERIAL_METADATA"; do
+                /bin/cp -f "$_repo_material/$_f" "$_staged/$_f" || _why="could not be read"
+            done
+        else
+            _label="google"
+            # Google publishes the variable fonts with their variation axes in the filename; the
+            # bracketed suffix has to be percent-encoded once for the raw.githubusercontent URL.
+            # The timeouts are explicit: a black-holed connection would otherwise hang a signing
+            # workflow indefinitely instead of failing.
+            BASE_URL="https://raw.githubusercontent.com/google/material-design-icons/master/variablefont"
+            AXES="FILL,GRAD,opsz,wght"
+            ENCODED_AXES="%5B${AXES//,/%2C}%5D"
+            for _ext in codepoints ttf; do
+                _url="${BASE_URL}/MaterialSymbols${MATERIAL_STYLE}${ENCODED_AXES}.${_ext}"
+                echo "  Downloading MaterialSymbols${MATERIAL_STYLE}.${_ext} ..."
+                /usr/bin/curl -fgL --retry 3 --connect-timeout 30 --max-time 900 --show-error --progress-bar \
+                    -o "$_staged/MaterialSymbols${MATERIAL_STYLE}.${_ext}" "$_url" \
+                    || fail "Download failed: $_url"
+            done
+            # Per-symbol tags / synonyms / categories, used for the picker's ranked search. The
+            # response carries an XSSI guard ")]}'" ahead of the JSON; drop everything before the
+            # first brace on line 1, which handles both the guard-on-its-own-line and inline forms.
+            echo "  Downloading $MATERIAL_METADATA ..."
+            META_URL="https://fonts.google.com/metadata/icons?key=material_symbols&incomplete=true"
+            /usr/bin/curl -fgL --retry 3 --connect-timeout 30 --max-time 900 --show-error --progress-bar \
+                -o "$_staged/metadata.raw" "$META_URL" \
+                || fail "Download failed: $META_URL"
+            LC_ALL=C /usr/bin/sed '1s/^[^{]*//' "$_staged/metadata.raw" > "$_staged/$MATERIAL_METADATA" \
+                || fail "Could not strip the XSSI guard from the Material Symbols metadata"
+            /bin/rm -f "$_staged/metadata.raw"
+        fi
+
+        if [ -z "$_why" ] && ! material_validate "$_staged"; then
+            _why="did not validate (expected a font, a '<name> <hex>' codepoints map and JSON the app can parse)"
+        fi
+        if [ -z "$_why" ]; then
+            material_render_probe "$_staged"
+            case "$?" in
+                0) ;;
+                2) echo "${YELLOW}  no glyphsvg available to render-test the font against - structural checks only${RESET}" ;;
+                *) _why="failed the render probe - the font is corrupt or truncated" ;;
+            esac
+        fi
+        if [ -z "$_why" ]; then
+            _source="$_label"
+            break
+        fi
+        # A bad repo copy is a warning and a fallback; a bad download is the end of the line.
+        # Either way the bundle has not been touched yet.
+        if [ "$_src" = "repo" ]; then
+            echo "${YELLOW}  the copy in $_repo_material $_why - falling back to the download${RESET}"
+        else
+            fail "The Material Symbols set from Google $_why. Nothing was written to the bundle."
+        fi
+    done
+    [ -n "$_source" ] || fail "Could not obtain a usable Material Symbols $MATERIAL_STYLE set. Nothing was written to the bundle."
 
     # Only now does anything touch the bundle, and even then in two passes: copy every file under
     # a dot-prefixed name and verify it, then rename them all into place. A plain cp -f over the
@@ -540,20 +611,26 @@ else
     for _f in "$MATERIAL_TTF" "$MATERIAL_CODEPOINTS" "$MATERIAL_METADATA"; do
         /bin/mv -f "$MATERIAL_DEST/.$_f.new" "$MATERIAL_DEST/$_f" || fail "Could not install $_f"
     done
-    # Only one style is embedded. Sweep any other style left over from an earlier run or a changed
-    # lib_material.py STYLE: each unused font is another 9-15 MB signed into the bundle.
+    _mcount=$(/usr/bin/wc -l < "$MATERIAL_DEST/$MATERIAL_CODEPOINTS" | /usr/bin/tr -d " ")
+    MATERIAL_STATUS="$MATERIAL_STYLE, $_mcount symbols (from $_source)"
+    echo "  ${GREEN}Deployed${RESET} Material Symbols $MATERIAL_STYLE ($_mcount symbols, from $_source):"
+    for _f in "$MATERIAL_TTF" "$MATERIAL_CODEPOINTS" "$MATERIAL_METADATA"; do
+        printf "    %-40s %s\n" "$_f" "$(/usr/bin/du -h "$MATERIAL_DEST/$_f" | /usr/bin/cut -f1)"
+    done
+fi
+
+# Only one style is embedded. Sweep any other style left over from an earlier run or a changed
+# lib_material.py STYLE: each unused font is another 9-15 MB signed into the bundle. Outside the
+# provisioning branch on purpose - it used to sit inside it, so a bundle whose current style was
+# already healthy kept signing in a leftover second style forever. The realistic way that happens
+# is copying glyphsvg's material/ wholesale, since its download fetches all three styles.
+if [ "$DO_MATERIAL" = "yes" ] && [ -d "$MATERIAL_DEST" ]; then
     for _stale in "$MATERIAL_DEST"/MaterialSymbols*.ttf "$MATERIAL_DEST"/MaterialSymbols*.codepoints; do
         [ -f "$_stale" ] || continue
         case "$(/usr/bin/basename "$_stale")" in
             "$MATERIAL_TTF"|"$MATERIAL_CODEPOINTS") ;;
             *) /bin/rm -f "$_stale" && echo "  removed unused ${_stale#"$MATERIAL_DEST"/}" ;;
         esac
-    done
-    _mcount=$(/usr/bin/wc -l < "$MATERIAL_DEST/$MATERIAL_CODEPOINTS" | /usr/bin/tr -d " ")
-    MATERIAL_STATUS="$MATERIAL_STYLE, $_mcount symbols (from $_source)"
-    echo "  ${GREEN}Deployed${RESET} Material Symbols $MATERIAL_STYLE ($_mcount symbols, from $_source):"
-    for _f in "$MATERIAL_TTF" "$MATERIAL_CODEPOINTS" "$MATERIAL_METADATA"; do
-        printf "    %-40s %s\n" "$_f" "$(/usr/bin/du -h "$MATERIAL_DEST/$_f" | /usr/bin/cut -f1)"
     done
 fi
 echo
@@ -575,11 +652,20 @@ echo
 # Which glyphsvg to ask about a set. The deployed one first; the repo build as a
 # fallback, so a --skip-glyphsvg run against an already-built checkout still
 # validates rather than silently doing less.
+#
+# GLYPHSVG_REPO is only resolved when the glyphsvg stage runs, so keying the
+# fallback on it alone meant --skip-glyphsvg found nothing even with a perfectly
+# good binary sitting in the sibling checkout - and, via set_present below, that
+# turned into a hard failure naming the SET as incomplete. Same candidate list as
+# material_render_probe, and for the same reason: --glyphsvg-repo=PATH steers it,
+# so a repo the operator pointed away from is never consulted behind their back.
 set_glyphsvg() {
+    local _repo_bin="$SCRIPT_DIR/../glyphsvg/build/bin/glyphsvg"
+    [ -n "$GLYPHSVG_REPO" ] && _repo_bin="$GLYPHSVG_REPO/build/bin/glyphsvg"
     if [ -x "$GLYPHSVG_DEST/glyphsvg" ]; then
         echo "$GLYPHSVG_DEST/glyphsvg"
-    elif [ -n "$GLYPHSVG_REPO" ] && [ -x "$GLYPHSVG_REPO/build/bin/glyphsvg" ]; then
-        echo "$GLYPHSVG_REPO/build/bin/glyphsvg"
+    elif [ -x "$_repo_bin" ]; then
+        echo "$_repo_bin"
     fi
 }
 
@@ -607,12 +693,25 @@ set_files() {
 }
 
 # Present means: glyphsvg resolves the set, and every file it names has content.
+# 0 = present, 1 = incomplete, 2 = cannot tell, because there is no glyphsvg to
+# read the manifest with. 2 matters: without it "nothing could check this" is
+# indistinguishable from "this is broken", and every caller below that treats a
+# nonzero return as fatal condemns a healthy set on a machine that simply has no
+# binary to hand.
+#
+# _rc is captured on its own line because `local _files="$(set_files "$1")"`
+# would set $? from the local builtin rather than from set_files, so the check
+# could never fire - which is exactly the bug this replaces.
 set_present() {
     [ -f "$1/glyphset.conf" ] || return 1
-    local _files="$(set_files "$1")"
-    [ "$?" -eq 0 ] || return 1
+    local _files
+    local _rc
+    _files="$(set_files "$1")"
+    _rc=$?
+    [ "$_rc" -eq 2 ] && return 2
+    [ "$_rc" -eq 0 ] || return 1
     [ -n "$_files" ] || return 1
-    local _f=""
+    local _f
     echo "$_files" | while IFS= read -r _f; do
         [ -n "$_f" ] || continue
         [ -s "$_f" ] || exit 1
@@ -646,6 +745,9 @@ set_render_probe() {
     return 0
 }
 
+# Used only by the "already present" short-circuit, where "cannot tell" has to
+# mean "do not take the shortcut" - re-provisioning a good set costs a copy,
+# trusting an unverifiable one costs a broken signed bundle.
 set_ok() {
     set_present "$1" || return 1
     set_render_probe "$1"
@@ -706,7 +808,11 @@ else
             echo "  $_set: fetching via $_repo_set/download.py ..."
             ( cd "$_repo_set" && ./download.py ) || fail "sets/$_set/download.py failed"
         fi
-        set_present "$_repo_set" || fail "sets/$_set is still incomplete after running its download.py"
+        set_present "$_repo_set"
+        case "$?" in
+            0|2) ;;
+            *) fail "sets/$_set is still incomplete after running its download.py" ;;
+        esac
 
         _staged="$WORK_DIR/sets/$_set"
         /bin/rm -rf "$_staged"
@@ -725,7 +831,12 @@ else
         # manifest, so copied by name.
         [ -s "$_repo_set/LICENSE" ] && /bin/cp -f "$_repo_set/LICENSE" "$_staged/LICENSE"
 
-        set_present "$_staged" || fail "The staged '$_set' set is incomplete. Nothing was written to the bundle."
+        set_present "$_staged"
+        case "$?" in
+            0) ;;
+            2) echo "${YELLOW}  no glyphsvg to read the '$_set' manifest - staged files not checked${RESET}" ;;
+            *) fail "The staged '$_set' set is incomplete. Nothing was written to the bundle." ;;
+        esac
         set_render_probe "$_staged"
         case "$?" in
             0) ;;
@@ -743,7 +854,11 @@ else
         /bin/mkdir -p "$SETS_DEST" || fail "Could not create $SETS_DEST"
         /bin/rm -rf "$_dest.new" "$_dest.old"
         /bin/cp -R "$_staged" "$_dest.new" || fail "Could not deploy the $_set set"
-        set_present "$_dest.new" || fail "The deployed '$_set' set is incomplete - the write did not complete."
+        set_present "$_dest.new"
+        case "$?" in
+            0|2) ;;
+            *) fail "The deployed '$_set' set is incomplete - the write did not complete." ;;
+        esac
         if [ -d "$_dest" ]; then
             /bin/mv -f "$_dest" "$_dest.old" || fail "Could not move the old $_set set aside"
         fi
@@ -781,55 +896,6 @@ else
     fi
 fi
 echo
-
-# ── Sweep build/editor droppings out of the payload ───────────────────────
-# Python byte-code caches and .DS_Store would be sealed into the signature. Scoped to the two
-# trees this script and the app's own scripts write - NOT the whole bundle, because the embedded
-# Python distribution under Contents/Library/Python legitimately ships .pyc files and a blanket
-# sweep would gut it.
-for _tree in "$HELPERS_DIR" "$APP_SCRIPTS_DIR"; do
-    [ -d "$_tree" ] || continue
-    /usr/bin/find "$_tree" -name "__pycache__" -type d -prune -exec /bin/rm -rf {} +
-    /usr/bin/find "$_tree" \( -name "*.pyc" -o -name ".DS_Store" -o -name ".*.new" \) -delete
-done
-
-# ── Sweep agent droppings and empty dot-directories out of the payload ─────
-# Editor and agent tooling drops working directories such as .claude/ and .claude/.cc-writes into
-# whatever tree it happens to run in. codesign treats one as a subcomponent and refuses to seal it:
-#   In subcomponent: .../ICEdit.app/Contents/Helpers/glyphsvg/.claude
-#   error: failed to sign app bundle
-# Unlike the sweep above this covers the WHOLE bundle, because they appear wherever the tool was
-# run - Contents/ and Contents/Resources/ as readily as the two trees this script writes.
-#
-# .claude is never payload, so it goes whole, contents and all: it is an agent's working directory
-# that happened to land inside the bundle, and a non-empty one breaks signing exactly like an empty
-# one. -prune keeps find from descending into what it is about to delete.
-_claudedirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -print)
-if [ -n "$_claudedirs" ]; then
-    /usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -exec /bin/rm -rf {} +
-    echo "  ${YELLOW}Removed${RESET} agent working directories that would have broken signing:"
-    echo "$_claudedirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
-fi
-
-# Any other empty dot-directory goes too. Safe here where a blanket .pyc sweep is not: an empty
-# directory carries nothing, so no payload can depend on one. -depth makes a single pass enough for
-# a nest, since children are visited first and the parent is already empty when -empty reaches it.
-_dotdirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -depth -type d -name ".*" -empty -print -delete)
-if [ -n "$_dotdirs" ]; then
-    echo "  ${YELLOW}Removed${RESET} empty dot-directories that would have broken signing:"
-    echo "$_dotdirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
-fi
-
-# What is left is a dot-directory with real content in it and a name this script does not recognize
-# as droppings. It breaks signing the same way, but deleting it could throw away something the
-# operator wanted. Name it instead, so the cause is obvious here rather than in codesign's output
-# several stages later.
-_dotleft=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".*" -print)
-if [ -n "$_dotleft" ]; then
-    echo "  ${YELLOW}Warning${RESET}: dot-directories remain in the bundle and will likely fail codesign:"
-    echo "$_dotleft" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
-    echo "    They hold content and are not a name this script sweeps - remove them by hand if they are droppings."
-fi
 
 # ── 4. Verify the payload ─────────────────────────────────────────────────
 # Before signing, not after. Sealing a bundle and only then finding the payload broken leaves a
@@ -903,8 +969,11 @@ if [ -d "$SETS_DEST" ]; then
             continue
         fi
         _any_set="yes"
-        set_present "$SETS_DEST/$_set" \
-            || fail "The deployed '$_set' set is incomplete. A plain re-run re-provisions it; --refresh-sets forces a fresh download."
+        set_present "$SETS_DEST/$_set"
+        case "$?" in
+            0|2) ;;
+            *) fail "The deployed '$_set' set is incomplete, or the glyphsvg reading it is too old to understand the manifest. A plain re-run re-provisions it; --refresh-sets forces a fresh download." ;;
+        esac
         set_render_probe "$SETS_DEST/$_set"
         case "$?" in
             0) echo "  ${GREEN}Verify OK${RESET}: glyphsvg renders every face of '$_set' from the deployed font" ;;
@@ -919,6 +988,60 @@ elif [ "$DO_SETS" = "yes" ]; then
     fail "No symbol font sets at $SETS_DEST after the provisioning stage."
 fi
 echo
+
+# ── Sweep build/editor droppings out of the payload ───────────────────────
+# Python byte-code caches and .DS_Store would be sealed into the signature. This sweep and the one
+# below it run AFTER step 4 and immediately before signing, not earlier: verification runs the
+# bundle's own icedit under python3, and bytecode it wrote would otherwise land inside the
+# signature. Apple's /usr/bin/python3 redirects caches out of the tree via sys.pycache_prefix, so
+# that much is belt-and-braces - but the ordering should not depend on a property of the operator's
+# interpreter, and the dot-directory sweep below has its own reason to run as late as it can.
+# Scoped to the two trees this script and the app's own scripts write - NOT the whole bundle,
+# because the embedded Python distribution under Contents/Library/Python legitimately ships .pyc
+# files and a blanket sweep would gut it.
+for _tree in "$HELPERS_DIR" "$APP_SCRIPTS_DIR"; do
+    [ -d "$_tree" ] || continue
+    /usr/bin/find "$_tree" -name "__pycache__" -type d -prune -exec /bin/rm -rf {} +
+    /usr/bin/find "$_tree" \( -name "*.pyc" -o -name ".DS_Store" -o -name ".*.new" \) -delete
+done
+
+# ── Sweep agent droppings and empty dot-directories out of the payload ─────
+# Editor and agent tooling drops working directories such as .claude/ and .claude/.cc-writes into
+# whatever tree it happens to run in. codesign treats one as a subcomponent and refuses to seal it:
+#   In subcomponent: .../ICEdit.app/Contents/Helpers/glyphsvg/.claude
+#   error: failed to sign app bundle
+# Unlike the sweep above this covers the WHOLE bundle, because they appear wherever the tool was
+# run - Contents/ and Contents/Resources/ as readily as the two trees this script writes.
+#
+# .claude is never payload, so it goes whole, contents and all: it is an agent's working directory
+# that happened to land inside the bundle, and a non-empty one breaks signing exactly like an empty
+# one. -prune keeps find from descending into what it is about to delete.
+_claudedirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -print)
+if [ -n "$_claudedirs" ]; then
+    /usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".claude" -prune -exec /bin/rm -rf {} +
+    echo "  ${YELLOW}Removed${RESET} agent working directories that would have broken signing:"
+    echo "$_claudedirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+fi
+
+# Any other empty dot-directory goes too. Safe here where a blanket .pyc sweep is not: an empty
+# directory carries nothing, so no payload can depend on one. -depth makes a single pass enough for
+# a nest, since children are visited first and the parent is already empty when -empty reaches it.
+_dotdirs=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -depth -type d -name ".*" -empty -print -delete)
+if [ -n "$_dotdirs" ]; then
+    echo "  ${YELLOW}Removed${RESET} empty dot-directories that would have broken signing:"
+    echo "$_dotdirs" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+fi
+
+# What is left is a dot-directory with real content in it and a name this script does not recognize
+# as droppings. It breaks signing the same way, but deleting it could throw away something the
+# operator wanted. Name it instead, so the cause is obvious here rather than in codesign's output
+# several stages later.
+_dotleft=$(/usr/bin/find "$APP_BUNDLE" -mindepth 1 -type d -name ".*" -print)
+if [ -n "$_dotleft" ]; then
+    echo "  ${YELLOW}Warning${RESET}: dot-directories remain in the bundle and will likely fail codesign:"
+    echo "$_dotleft" | while IFS= read -r _d; do echo "    ${_d#"$APP_BUNDLE"/}"; done
+    echo "    They hold content and are not a name this script sweeps - remove them by hand if they are droppings."
+fi
 
 # ── 5. Codesign ───────────────────────────────────────────────────────────
 # Deep-sign with codesign_applet.sh (shipped beside this script): it signs every loose Mach-O and

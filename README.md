@@ -190,7 +190,7 @@ A fresh checkout does not contain a runnable app. Two scripts fill it in:
 | AppletBuilder (from [OMC](https://abracode.com)) | The OMC engine: `Contents/MacOS`, `Contents/Frameworks/Abracode.framework`, `Contents/Library/Python` |
 | `./update_icedit.sh` | Everything app-specific: `Contents/Helpers` and the Material Symbols resources |
 
-`update_icedit.sh` expects the [icedit](https://github.com/abra-code/icedit) and [glyphsvg](https://github.com/abra-code/glyphsvg) repositories checked out beside this one, and offers to clone them if they are missing (interactive runs only - without a terminal it fails with instructions instead). It deploys the `icedit` CLI, builds `glyphsvg` from source (universal arm64 + x86_64), regenerates the SF Symbols map (`sfmap.plist` and the sorted `names.txt`), provisions the Material Symbols font and metadata, code-signs the bundle with `codesign_applet.sh`, and then runs each deployed helper to prove it works.
+`update_icedit.sh` expects the [icedit](https://github.com/abra-code/icedit) and [glyphsvg](https://github.com/abra-code/glyphsvg) repositories checked out beside this one, and offers to clone them if they are missing (interactive runs only - without a terminal it fails with instructions instead). It deploys the `icedit` CLI, builds `glyphsvg` from source (universal arm64 + x86_64), regenerates the SF Symbols map (`sfmap.plist` and the sorted `names.txt`), provisions the Material Symbols font and metadata, verifies the whole payload by running each deployed helper, and only then code-signs the bundle with `codesign_applet.sh`.
 
 ```bash
 ./update_icedit.sh                    # the usual full pass
@@ -198,9 +198,9 @@ A fresh checkout does not contain a runnable app. Two scripts fill it in:
 ./update_icedit.sh --help             # all options
 ```
 
-The Material Symbols resources are fetched only when the deployed set is missing or unusable, since they are ~22 MB; `--refresh-material` forces a fresh download from Google. When a fetch is needed and the sibling `glyphsvg` checkout already holds all three files for the current style, they are copied from there instead - so a payload left truncated by an interrupted run repairs itself with no network access. `--refresh-material` always goes to Google and never uses that local copy.
+The Material Symbols resources are fetched only when the deployed set is missing or unusable, since they are ~22 MB; `--refresh-material` forces a fresh download from Google. When a fetch is needed and the sibling `glyphsvg` checkout already holds all three files for the current style, they are copied from there first - so a payload left truncated by an interrupted run normally repairs itself with no network access. That copy is only preferred, never trusted: if it fails validation or the render check the script falls through to the download rather than giving up, since `glyphsvg`'s own `material/download.sh` writes into that directory unstaged and can leave a truncated file there. `--refresh-material` skips the local copy entirely and always goes to Google.
 
-Everything is verified *before* the bundle is signed, including rendering a real glyph through the deployed `glyphsvg`, so a broken payload never gets sealed. Only the signature check and a re-launch of the signed helpers happen afterwards.
+Everything is verified *before* the bundle is signed, including rendering a real glyph through `glyphsvg` - which is the only check that catches a truncated font, since `file` happily reports a 200 KB fragment of the 15 MB font as valid TrueType. The script looks for a usable `glyphsvg` in the bundle, then in the sibling repo's build products; if it finds none at all it says so and falls back to structural checks alone, which is the one case where a corrupt font could still be sealed. Only the signature check and a re-launch of the signed helpers happen after signing.
 
 The script refuses to overwrite files under `Contents/Helpers/icedit` that differ from the `icedit` repository, since the bundle copy has carried fixes that were never upstreamed. Upstream the change, or pass `--force-icedit` to discard it.
 

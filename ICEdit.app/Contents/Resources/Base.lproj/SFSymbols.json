@@ -22,6 +22,15 @@
       },
       "children": [
         {
+          "type": "Text",
+          "properties": {
+            "text": "Apple SF Symbols - Xcode and Apple SDKs Agreement, section 2.10",
+            "font": "caption",
+            "foregroundStyle": "secondary",
+            "padding": { "top": 8.0, "leading": 10.0, "trailing": 8.0, "bottom": 0.0 }
+          }
+        },
+        {
           "type": "TextField",
           "id": 1,
           "properties": {
@@ -71,6 +80,32 @@
           }
         },
         { "type": "Spacer" },
+        {
+          "type": "HStack",
+          "properties": {
+            "spacing": 8.0,
+            "padding": { "top": 8.0, "bottom": 8.0, "leading": 12.0, "trailing": 12.0 }
+          },
+          "children": [
+            {
+              "type": "Image",
+              "properties": {
+                "systemName": "exclamationmark.triangle.fill",
+                "foregroundStyle": "orange",
+                "imageScale": "large"
+              }
+            },
+            {
+              "type": "Text",
+              "properties": {
+                "text": "Apple's Xcode and Apple SDKs Agreement section 2.10 does not permit system-provided images, including SF Symbols, in app icons, logos or other trademark use. For icons you intend to ship, use other fonts instead.",
+                "font": "callout",
+                "foregroundStyle": "orange",
+                "frame": { "maxWidth": "infinity", "alignment": "leading" }
+              }
+            }
+          ]
+        },
         {
           "type": "HStack",
           "properties": {

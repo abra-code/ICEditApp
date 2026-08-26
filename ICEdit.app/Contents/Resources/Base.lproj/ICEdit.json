@@ -82,8 +82,8 @@
                 {
                   "type": "Button",
                   "properties": {
-                    "title": "Layer with SF Symbol",
-                    "actionID": "ICEdit.sfsymbols"
+                    "title": "Layer with Symbol Font",
+                    "actionID": "ICEdit.symbolfonts"
                   }
                 },
                 {
@@ -96,8 +96,8 @@
                 {
                   "type": "Button",
                   "properties": {
-                    "title": "Layer with Symbol Font...",
-                    "actionID": "ICEdit.symbolfonts"
+                    "title": "Layer with SF Symbol",
+                    "actionID": "ICEdit.sfsymbols"
                   }
                 }
               ]
@@ -158,14 +158,31 @@
           "children": [
             { "type": "Spacer" },
             {
-              "type": "Image",
-              "id": 200,
-              "properties": {
-                "resourceName": "Blank.png",
-                "contentMode": "fit",
-                "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
-                "padding": "default"
-              }
+              "type": "ZStack",
+              "children": [
+                {
+                  "type": "Image",
+                  "id": 200,
+                  "properties": {
+                    "resourceName": "Blank.png",
+                    "contentMode": "fit",
+                    "frame": { "maxWidth": 512.0, "maxHeight": 512.0 },
+                    "padding": "default"
+                  }
+                },
+                {
+                  "type": "ContentUnavailableView",
+                  "id": 201,
+                  "properties": {
+                    "title": "No Preview",
+                    "systemImage": "eye.slash",
+                    "description": "Icon Composer is not installed. ICEdit renders this preview with its ictool helper, so editing works but the composed result cannot be shown. Install Icon Composer, or Xcode, to see it.",
+                    "hidden": true,
+                    "padding": "default",
+                    "frame": { "maxWidth": 512.0, "maxHeight": 512.0 }
+                  }
+                }
+              ]
             },
             { "type": "Spacer" },
             {

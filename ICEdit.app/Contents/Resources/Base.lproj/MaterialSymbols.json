@@ -22,6 +22,15 @@
       },
       "children": [
         {
+          "type": "Text",
+          "properties": {
+            "text": "Google Material Symbols - Apache License 2.0",
+            "font": "caption",
+            "foregroundStyle": "secondary",
+            "padding": { "top": 8.0, "leading": 10.0, "trailing": 8.0, "bottom": 0.0 }
+          }
+        },
+        {
           "type": "TextField",
           "id": 1,
           "properties": {

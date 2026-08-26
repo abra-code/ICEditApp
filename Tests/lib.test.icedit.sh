@@ -73,9 +73,10 @@ symbolfont_add_svg() { printf '%s/icedit_symbolfont_add_%s.svg' "$(scratch_dir)"
 
 # --- Per-document state, which lives entirely in the pasteboard ----------------
 #
-# The real pasteboard tool, reached through the interposition directory exactly
-# as the handlers reach it - not the framework copy directly, so a test reads
-# back through the same namespacing wrapper the handler wrote through.
+# Reached through the interposition directory exactly as the handlers reach it,
+# not the framework copy directly - so a test reads back through the same
+# file-backed stub the handler wrote through. Reading the framework copy would
+# ask the machine's real pasteboard server, which holds none of this run's data.
 pb_key() { printf 'icedit_%s_%s' "$1" "$(document_uuid)"; }
 pb_get() { "$OMC_OMC_SUPPORT_PATH/pasteboard" "$(pb_key "$1")" get 2>/dev/null; }
 pb_set() { printf '%s' "$2" | "$OMC_OMC_SUPPORT_PATH/pasteboard" "$(pb_key "$1")" set; }
@@ -370,6 +371,7 @@ PICK_FILL=12
 # named weight reaches past black/900. Id 13 is the label beside it. Both are
 # inert for a static font (Bungee), which is what section 13b asserts.
 PICK_FONT=4
+PICK_FONT_LICENSE=5
 PICK_FACE=11
 PICK_FONT_WEIGHT=12
 PICK_FONT_WEIGHT_LABEL=13
@@ -482,7 +484,7 @@ omctest_import_view_ids \
 # sample of them: one that went missing from the app is exactly the case this is
 # for.
 for omctest_required_id in ID_LAYER_LIST ID_BTN_ADD ID_BTN_REMOVE ID_PREVIEW \
-    ID_STATUS ID_BG_FILL ID_BG_COLOR1 ID_BG_COLOR1_PICKER ID_BG_COLOR1_LABEL \
+    ID_PREVIEW_NOTICE ID_STATUS ID_BG_FILL ID_BG_COLOR1 ID_BG_COLOR1_PICKER ID_BG_COLOR1_LABEL \
     ID_BG_COLOR2 ID_BG_COLOR2_PICKER ID_BG_COLOR2_LABEL ID_LAYER_FILL \
     ID_LAYER_COLOR1 ID_LAYER_COLOR1_PICKER ID_LAYER_COLOR1_LABEL \
     ID_LAYER_COLOR2 ID_LAYER_COLOR2_PICKER ID_LAYER_COLOR2_LABEL \

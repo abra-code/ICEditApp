@@ -24,6 +24,14 @@ if not ICTOOL:
 # Icon Composer.app path is derived from ictool path
 # e.g., /Applications/Icon Composer.app/Contents/Executables/ictool
 composer_app = os.path.dirname(os.path.dirname(os.path.dirname(ICTOOL)))
+# The derivation assumes ictool sits three levels inside a .app, which every
+# path find_icon_composer searches does - but $ICEDIT_ICTOOL can name one
+# anywhere, and /usr/local/bin/ictool would derive "/usr". Checked rather than
+# handed to open(1), which would fail while the status line below still claimed
+# success.
+if not composer_app.endswith(".app") or not os.path.isdir(composer_app):
+    set_status("Cannot locate Icon Composer.app from %s" % ICTOOL)
+    sys.exit(0)
 
 if is_dirty():
     # Ask user to save before opening
@@ -53,7 +61,15 @@ if is_dirty():
             sys.exit(1)
     # choice == 1: Open Without Saving — proceed with stale file on disk
 
-subprocess.run(["open", "-a", composer_app, original_path])
+# Checked: open(1) reports a bundle it could not launch, and reporting success
+# regardless leaves the user waiting for a window that is not coming.
+r = subprocess.run(["open", "-a", composer_app, original_path],
+                   capture_output=True, text=True)
+if r.returncode != 0:
+    err = (r.stderr.strip() or r.stdout.strip() or "open failed")
+    log(f"open -a failed: {err}")
+    set_status(f"Could not open Icon Composer: {err}")
+    sys.exit(1)
 set_status(f"Opened in Icon Composer")
 
 log("=== ICEdit.open.in.composer.py done ===")

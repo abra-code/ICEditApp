@@ -12,6 +12,11 @@ from lib_icedit import *
 
 log("=== ICEdit.window.activated.py ===")
 
+# Before the early exits below. Activation is the one path that returns without
+# touching the preview when nothing changed on disk, so a No Preview notice
+# raised earlier would outlive the install that made it wrong.
+recheck_preview(get_icon_path())
+
 original_path = get_original_icon_path()
 if not original_path:
     # New unsaved icon — nothing to check

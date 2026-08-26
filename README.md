@@ -28,7 +28,11 @@ ICEdit is built on the [OMC](https://abracode.com) framework with an ActionUI de
 
 ### Preview
 
-The center panel shows a composed layers preview rendered by `ictool` (from Icon Composer.app). The preview refreshes after every change. If Icon Composer is not installed, the preview area is blank.
+The center panel shows a composed layers preview rendered by `ictool` (from Icon Composer.app). The preview refreshes after every change.
+
+If Icon Composer is not installed, the preview area says so - a **No Preview** notice explaining that editing still works and only the composed rendering is unavailable. The notice stays up until the tool is found, rather than being a status-line message that the next action overwrites.
+
+ICEdit looks for `ictool` in `/Applications/Icon Composer.app`, inside `Xcode.app`, and inside whatever Xcode `xcode-select -p` points at. `$ICEDIT_ICTOOL` names the tool outright and overrides the search. An override that points at nothing is honored as "not installed" rather than falling back to the search, since silently rendering with a different tool than the one asked for is the harder failure to notice.
 
 ### Open in Icon Composer
 
@@ -38,7 +42,9 @@ The **Open in Icon Composer** button opens the current icon's on-disk path in Ic
 
 ## SF Symbols
 
-The **Add Layer with SF Symbol** menu item opens a SF Symbols picker window.
+The **Add Layer with SF Symbol** menu item opens a SF Symbols picker window. It is last in the Add Layer menu, and the picker carries a warning, for the reason below.
+
+> **SF Symbols may not be used in app icons.** Apple's [Xcode and Apple SDKs Agreement](https://images.apple.com/legal/sla/docs/xcode.pdf) section 2.10 ("System-Provided Images") bars incorporating system-provided images, which includes SF Symbols, into app icons, logos or any other trademark use. Since an `.icon` bundle is an app icon, that is the whole of what this editor produces - so for artwork you intend to ship, use the Material Symbols or Symbol Fonts pickers, whose fonts carry no such restriction. The feature stays because SF Symbols remain legitimate for mockups, for in-app UI artwork, and for icons that are never shipped.
 
 - **Filter** — Type to search by symbol name in real time.
 - **Symbol list** — Displays all available SF Symbols (~7,000+).
@@ -58,6 +64,7 @@ The **Add Layer with Material Symbol** menu item opens a Google Material Symbols
 - **Symbol list** — Displays all available Material Symbols (~3,000+, Rounded style).
 - **Weight picker** — Selects rendering weight (Thin through Black). Defaults to Bold, which renders well as an icon layer.
 - **Fill toggle** — Optionally render the symbol in its filled variant.
+- **License line** — Names the font's terms (Apache License 2.0), the same line the Symbol Fonts picker shows for whichever font is selected.
 - **Preview** — Renders the selected symbol at the chosen weight/fill as an SVG.
 - **Add Layer button** — Adds the symbol as a new layer in the current icon using `icedit add_svg --auto-scale`.
 
@@ -81,32 +88,39 @@ Source: [google/material-design-icons](https://github.com/google/material-design
 
 ## Symbol Fonts
 
-The **Add Layer with Symbol Font...** menu item opens a picker over the icon fonts embedded in the bundle. Where the SF Symbols and Material Symbols pickers are each tied to one font, this one chooses its font at run time.
+The **Add Layer with Symbol Font** menu item opens a picker over the fonts embedded in the bundle. Where the SF Symbols and Material Symbols pickers are each tied to one font, this one chooses its font at run time.
 
-- **Font picker** - Selects among the embedded glyph sets. The list is built from what is actually in the bundle, so it never offers a font that is not there.
+- **Font picker** - Selects among the embedded glyph sets, grouped under **Icon Fonts** and **Text Fonts** headers. The list is built from what is actually in the bundle, so it never offers a font that is not there.
+- **License line** - Names the selected font's terms, directly under the font picker. It is read from the set's own manifest rather than kept in the app, so a font added to the bundle brings its license text with it.
 - **Filter** - Ranked search, the same ranking the Material Symbols picker uses: the exactly typed name first, then whole-word matches in the name, then partial matches, then tag-only matches. A font that publishes no tags degrades to name matching.
 - **Style picker** - Selects among that font's faces. Disabled when the font has only one.
+- **Weight slider** - Drives the font's `wght` axis. Disabled, and labeled "Single weight", for a static font that has no such axis.
 - **Preview** and **Add Layer** behave as in the other pickers, using `icedit add_svg --auto-scale`.
 
-Three fonts are embedded:
+Eight fonts are embedded, in two kinds. **Icon fonts** are pictograms, the direct replacement for an SF Symbol. **Text fonts** are characters, for putting a letter or two on an app icon. Noto Emoji is grouped with the icon fonts even though its symbol names are single characters: what you are picking from it is a pictograph, and that is what the grouping is for.
 
-| Set | Icons | Faces | License |
-|---|---|---|---|
-| Pictogrammers [Material Design Icons](https://pictogrammers.com/library/mdi/) | 7,188 | `regular` | Pictogrammers Free License (Apache 2.0 terms) |
-| Microsoft [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) | 2,819 outlined + 2,859 filled | `regular`, `filled` | MIT |
-| [Phosphor Icons](https://phosphoricons.com) | 1,512 in each of five | `thin`, `light`, `regular`, `bold`, `fill` | MIT |
+| Set | Kind | Symbols | Faces / weight | License |
+|---|---|---|---|---|
+| Pictogrammers [Material Design Icons](https://pictogrammers.com/library/mdi/) | icon | 7,188 | `regular` | Pictogrammers Free License (Apache 2.0 terms) |
+| Microsoft [Fluent System Icons](https://github.com/microsoft/fluentui-system-icons) | icon | 2,819 outlined + 2,859 filled | `regular`, `filled` | MIT |
+| [Phosphor Icons](https://phosphoricons.com) | icon | 1,512 in each of five | `thin`, `light`, `regular`, `bold`, `fill` | MIT |
+| [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) | icon | 1,424 | axis `wght` 300..700 | SIL Open Font License 1.1 |
+| [Nunito](https://fonts.google.com/specimen/Nunito) | text | 901 | axis `wght` 200..1000 | SIL Open Font License 1.1 |
+| [Alexandria](https://fonts.google.com/specimen/Alexandria) | text | 918 | axis `wght` 100..900 | SIL Open Font License 1.1 |
+| [Bungee](https://fonts.google.com/specimen/Bungee) | text | 707 | static, single weight | SIL Open Font License 1.1 |
+| [Monaspace Krypton](https://monaspace.githubnext.com) | text | 2,366 | axis `wght` 200..800 | SIL Open Font License 1.1 |
 
-All three are static fonts with no variation axes, which is why this picker offers a face list where the Material Symbols picker offers a weight slider and a fill toggle. Fluent draws filled and outlined as separate glyphs rather than as a fill axis, so its two variants are faces sharing a single font file.
+MDI, Fluent and Phosphor are static, with no variation axes, which is why this picker offers a face list for them where the Material Symbols picker offers a weight slider. Fluent draws filled and outlined as separate glyphs rather than as a fill axis, so its two variants are faces sharing a single font file. The other four - Noto Emoji, Nunito, Alexandria and Monaspace - are variable, so for those the slider is the control and reaches whatever weight the font actually declares, up to 1000 for Nunito, past what a fixed list of named weights could reach. Bungee is static and already heavy.
 
 **If you want a heavier stroke, use Phosphor.** App icons generally read better with more weight than a UI icon font's default, and Phosphor is the embedded family that has any: MDI ships one weight, Fluent two styles at one weight. Phosphor's five are five separate fonts, listed light to heavy, so the Style picker reads as a weight ramp. All five share the same 1,512 names, so changing weight keeps your selection. (Phosphor publishes a sixth, `duotone`, which is not bundled: its two tones are two separate glyphs, and the codepoint upstream publishes is the faint tint layer rather than the icon.)
 
-Note that both sets include brand and company logos. A permissive font license covers the artwork's copyright and grants nothing on third-party trademarks - which matters here, because an app icon is trademark use.
+Note that the icon sets include brand and company logos. A permissive font license covers the artwork's copyright and grants nothing on third-party trademarks - which matters here, because an app icon is trademark use.
 
 ### Development Setup (not needed for distributed app)
 
 The fonts and their codepoint maps are not committed, for the same size reason as Material Symbols. `update_icedit.sh` provisions them into `Contents/Helpers/glyphsvg/sets/<name>/`, one directory per set, each holding a `glyphset.conf` manifest naming its font and codepoint tables.
 
-Unlike the Material stage, this one needs the glyphsvg checkout: both fonts need their upstream data converted before `glyphsvg` can read it, and those converters live in the glyphsvg repo as `sets/<name>/download.py`. The script runs them and copies the result rather than duplicating the conversion. Use `--skip-sets` to leave the sets alone, `--refresh-sets` to re-fetch. Adding a font is a new `sets/<name>/` in the glyphsvg repo plus its name in `SET_NAMES` - no new dialog, scripts or commands.
+Unlike the Material stage, this one needs the glyphsvg checkout: the fonts need their upstream data converted before `glyphsvg` can read it, and those converters live in the glyphsvg repo as `sets/<name>/download.py`. The script runs them and copies the result rather than duplicating the conversion. Use `--skip-sets` to leave the sets alone, `--refresh-sets` to re-fetch. Adding a font is a new `sets/<name>/` in the glyphsvg repo plus its name in `SET_NAMES` - no new dialog, scripts or commands.
 
 ---
 

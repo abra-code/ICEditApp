@@ -42,6 +42,21 @@
           }
         },
         {
+          "type": "Text",
+          "id": 5,
+          "properties": {
+            "text": "",
+            "font": "caption",
+            "foregroundStyle": "secondary",
+            "padding": {
+              "top": 2,
+              "leading": 10,
+              "trailing": 8,
+              "bottom": 0
+            }
+          }
+        },
+        {
           "type": "TextField",
           "id": 1,
           "properties": {

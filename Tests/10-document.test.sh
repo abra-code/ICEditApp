@@ -409,6 +409,84 @@ check_status "a parseable one opens"        0
 check "and reports itself"                  "Loaded Malformed.icon" "$(ui_value $ID_STATUS)"
 check "with its background row"             "1"             "$(ui_row_count $ID_LAYER_LIST)"
 
+section "17. without Icon Composer the preview says so instead of dying"
+# The branch this covers was unreachable until ICEDIT_ICTOOL existed: ICTOOL is
+# resolved once at import time from the real filesystem, so a machine WITH Icon
+# Composer - which is every machine this suite has ever run on - could not
+# exercise the not-installed path at all. That is how the defect below survived.
+#
+# The positive control comes first and is not decoration: if Icon Composer were
+# missing here, every assertion in the negative half would pass for the wrong
+# reason.
+reset_document
+omc_object ""
+omc_run ICEdit.main
+check "precondition: Icon Composer IS installed here" "yes" \
+    "$([ -f "$(ui_value $ID_PREVIEW)" ] && echo yes || echo no)"
+check "so the notice is down"               "0"             "$(ui_visible $ID_PREVIEW_NOTICE)"
+
+# An override naming nothing is the not-installed state. It is honored rather
+# than falling back to the search, which is what makes it a usable seam - and is
+# also the right behavior for a real override that is simply wrong.
+ICEDIT_ICTOOL="$OMCTEST_WORK/no-such-ictool"
+export ICEDIT_ICTOOL
+check "the override names nothing"          "no" \
+    "$([ -e "$ICEDIT_ICTOOL" ] && echo yes || echo no)"
+reset_document
+omc_object ""
+omc_run ICEdit.main
+# The assertion this section exists for. render_preview used to test
+# os.path.isfile(ICTOOL) with ICTOOL None, and isfile raises TypeError on None
+# rather than answering False - so the handler died here, taking the document
+# with it, and the "Icon Composer not installed" message one line further down
+# could never run.
+check_status "the handler still succeeds"   0
+check "the preview notice is shown"         "1"             "$(ui_visible $ID_PREVIEW_NOTICE)"
+# And the status line has already moved on to ICEdit.main's own "New icon",
+# which it writes a few lines after render_preview returns. That is not a bug to
+# fix here - it is the whole reason the notice is a view of its own rather than
+# a status message. Asserted rather than left implied, because if the status
+# line ever DID hold this text the notice would look redundant to the next
+# reader, and it is not.
+check "the status line has moved on"        "New icon"      "$(ui_value $ID_STATUS)"
+# Editing is unaffected: only the rendered preview needs ictool. A document that
+# opened with no table would be a much larger failure wearing this one's clothes.
+check "the document still opened"           "Untitled"      "$(ui_title)"
+check "and its table is populated"          "1"             "$(ui_row_count $ID_LAYER_LIST)"
+check_exists "with a real working copy"     "$(work_icon)/icon.json"
+
+# Window activation is the one path that returns early without touching the
+# preview when nothing changed on disk. With the tool still absent that must
+# leave the notice alone rather than tearing it down.
+omc_run ICEdit.window.activated
+check_status "activation with no change is a no-op" 0
+check "and the notice is still up"          "1"             "$(ui_visible $ID_PREVIEW_NOTICE)"
+
+# And once the tool arrives, activation alone clears it - without this the user
+# who installs Icon Composer and switches back to a window they are not editing
+# keeps looking at a notice that is no longer true.
+unset ICEDIT_ICTOOL
+omc_run ICEdit.window.activated
+check_status "activation after the install succeeds" 0
+check "the notice was cleared by activation" "0"            "$(ui_visible $ID_PREVIEW_NOTICE)"
+check "and a preview was rendered"          "yes" \
+    "$([ -f "$(ui_value $ID_PREVIEW)" ] && echo yes || echo no)"
+
+# The same recheck must cost nothing when the preview was never blocked: with
+# the flag clear, a second activation renders nothing new.
+omc_run ICEdit.window.activated
+check_status "a further activation is a no-op" 0
+check "the notice stays down"               "0"             "$(ui_visible $ID_PREVIEW_NOTICE)"
+
+# And a fresh document with the tool present never raises it at all.
+reset_document
+omc_object ""
+omc_run ICEdit.main
+check_status "with the tool back, it succeeds" 0
+check "the notice was taken down"           "0"             "$(ui_visible $ID_PREVIEW_NOTICE)"
+check "and the preview rendered"            "yes" \
+    "$([ -f "$(ui_value $ID_PREVIEW)" ] && echo yes || echo no)"
+
 section "cumulative: the window never wrote to a view id it does not declare"
 # unknown_ids.log accumulates across the whole file, so this one assertion covers
 # every section above it. The line before it is its positive control: if the

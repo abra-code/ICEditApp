@@ -60,8 +60,23 @@ check_status "the handler succeeded"          0
 # bundle later must not have to edit this test.
 set_count="$(icedit_eval 'len(lib_symbolfonts.list_sets())')"
 check "the font picker was populated"         "1"  "$(ui_calls "$PICK_FONT.omc_set_property")"
+# Entries carrying a tag, not entries. The list also holds {"section": ...}
+# markers, which are headers rather than choices, so counting the raw list would
+# make this assertion depend on how many kinds the bundle happens to hold.
 check "every installed set is offered"        "$set_count" \
-    "$(icedit_eval 'len(json.loads(ARGV[0]))' "$(ui_prop $PICK_FONT options)")"
+    "$(icedit_eval 'len([o for o in json.loads(ARGV[0]) if "tag" in o])' "$(ui_prop $PICK_FONT options)")"
+# The headers themselves, in order. Emitted only when the bundle holds more than
+# one kind - one header over the whole list labels nothing - so the expectation
+# is derived rather than written down, for the same reason set_count is.
+check "the two kinds are grouped under headers" \
+    "$(icedit_eval '",".join(lib_symbolfonts.KIND_TITLES[k] for k in lib_symbolfonts.KIND_ORDER if any(s["kind"] == k for s in lib_symbolfonts.list_sets())) if len({s["kind"] for s in lib_symbolfonts.list_sets()}) > 1 else ""')" \
+    "$(icedit_eval '",".join(o["section"] for o in json.loads(ARGV[0]) if "section" in o)' "$(ui_prop $PICK_FONT options)")"
+# A header owns every entry after it until the next one, so the grouping is only
+# real if the tagged entries arrive already sorted by kind. Compare the order the
+# picker was given against the order the library reports.
+check "and the sets are listed in that order" \
+    "$(icedit_eval '",".join(s["name"] for s in lib_symbolfonts.list_sets())')" \
+    "$(icedit_eval '",".join(o["tag"] for o in json.loads(ARGV[0]) if "tag" in o)' "$(ui_prop $PICK_FONT options)")"
 # Selected explicitly, not left to the placeholder in SymbolFonts.json: that
 # placeholder's tag is the empty string, and a handler reading it would treat
 # the picker as having no font at all.
@@ -70,6 +85,12 @@ check "and one of them is selected"           "$first_set"  "$(ui_value $PICK_FO
 check "the name list was filled"              "1"  "$(ui_calls "$PICK_LIST.omc_list_set_items_from_stdin")"
 first_names="$(icedit_eval 'len(lib_symbolfonts.load_names(lib_symbolfonts.set_info(ARGV[0]).get("codepoints")))' "$first_set")"
 check "with the font's own symbol count"      "$first_names symbols" "$(ui_value $PICK_STATUS)"
+# The license comes from the set's manifest by way of glyphsvg --info, so it is
+# checked against what --info reports rather than against a literal: a font whose
+# terms change upstream should move this line, not fail this test.
+check "and the font's license is named"       \
+    "$(icedit_eval 'lib_symbolfonts.set_info(ARGV[0]).get("license", "")' "$first_set")" \
+    "$(ui_value $PICK_FONT_LICENSE)"
 adopt_window_values "$PICK_FONT" "$PICK_FACE"
 
 section "3. a single-face font has nothing to choose, and says so"
@@ -82,6 +103,12 @@ omc_run ICEdit.symbolfonts.font
 check_status "the handler succeeded"          0
 check "the style picker is disabled"          "0"          "$(ui_enabled $PICK_FACE)"
 check "and still carries a usable face"       "regular"     "$(ui_value $PICK_FACE)"
+# The license line is per font, so it has to move with the font. Left standing,
+# it would name the terms of a font the dialog is no longer showing - which is a
+# worse failure than showing nothing, because it reads as an assertion.
+check "the license line followed the font"    \
+    "$(icedit_eval 'lib_symbolfonts.set_info("mdi").get("license", "")')" \
+    "$(ui_value $PICK_FONT_LICENSE)"
 # Only the FACE. adopt_window_values copies back what a handler WROTE, and
 # nothing writes the font picker after init - so adopting it here would quietly
 # revert the font to whatever init selected and undo the switch under test.

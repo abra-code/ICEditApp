@@ -95,9 +95,17 @@ def set_info(set_name, face=None):
     return _parse_info(out)
 
 
+# Icon fonts first: they are what an icon editor is normally reaching for, and
+# the text fonts are the special case (a letter or two on an app icon). A set
+# whose manifest names no kind is an icon font - see glyphsvg's parseSetManifest.
+KIND_ORDER = ("icon", "text")
+KIND_TITLES = {"icon": "Icon Fonts", "text": "Text Fonts"}
+
+
 def list_sets():
-    """Return [{name, title, faces}] for every usable set in the bundle, sorted
-    by title. A directory that glyphsvg will not resolve is skipped rather than
+    """Return [{name, title, kind, license, faces}] for every usable set in the
+    bundle, grouped icon-fonts-then-text-fonts and sorted by title within each
+    group. A directory that glyphsvg will not resolve is skipped rather than
     offered and then failing on selection."""
     sets = []
     if not os.path.isdir(SETS_DIR):
@@ -108,12 +116,24 @@ def list_sets():
         info = set_info(entry)
         if not info.get("faces"):
             continue
+        kind = info.get("kind") or "icon"
         sets.append({
             "name": entry,
             "title": info.get("title") or entry,
+            # An unknown kind sorts last rather than being dropped: a set the
+            # bundle actually holds should stay reachable even if a future
+            # glyphsvg grows a third one this picker has no header for.
+            "kind": kind,
+            "license": info.get("license") or "",
             "faces": info["faces"],
         })
-    sets.sort(key=lambda s: s["title"].lower())
+
+    def sort_key(s):
+        kind = s["kind"]
+        rank = KIND_ORDER.index(kind) if kind in KIND_ORDER else len(KIND_ORDER)
+        return (rank, s["title"].lower())
+
+    sets.sort(key=sort_key)
     return sets
 
 
@@ -307,6 +327,7 @@ ID_FILTER = 1
 ID_LIST = 2
 ID_STATUS = 3
 ID_FONT = 4
+ID_LICENSE = 5
 ID_PREVIEW = 10
 ID_FACE = 11
 ID_WEIGHT = 12
@@ -335,10 +356,41 @@ def set_status(window_uuid, message):
     dialog(window_uuid, ID_STATUS, message)
 
 
+def set_license(window_uuid, info):
+    """Show the current font's terms on its own line.
+
+    Its own line, not appended to the status line: the status line is also where
+    a failed render reports itself, so sharing it would drop the licensing
+    notice exactly when the user is looking hardest at the dialog. A set whose
+    manifest names no license leaves the line blank rather than guessing."""
+    # The license name alone. The font picker sits directly above this line and
+    # already names the font, and repeating it here pushes the longest of these
+    # onto a third wrapped line in a 220pt column.
+    dialog(window_uuid, ID_LICENSE, (info or {}).get("license") or "")
+
+
 def _picker_options(pairs):
     """Build the JSON option list a Picker takes: [{"title","tag"}, ...]."""
     import json
     return json.dumps([{"title": t, "tag": g} for t, g in pairs])
+
+
+def _sectioned_options(sets):
+    """Same list, with a {"section": ...} marker before each run of one kind.
+
+    ActionUI reads a section entry as a header that owns every item after it
+    until the next one, so the markers have to be interleaved in order - which
+    is why list_sets() sorts by kind first. A single-kind bundle gets no headers
+    at all: one header over the whole list labels nothing."""
+    import json
+    kinds = {s["kind"] for s in sets}
+    options, current = [], None
+    for s in sets:
+        if len(kinds) > 1 and s["kind"] != current:
+            current = s["kind"]
+            options.append({"section": KIND_TITLES.get(current, current.title())})
+        options.append({"title": s["title"], "tag": s["name"]})
+    return json.dumps(options)
 
 
 def populate_fonts(window_uuid, sets, selected=None):
@@ -347,7 +399,7 @@ def populate_fonts(window_uuid, sets, selected=None):
     if not sets:
         return ""
     dialog(window_uuid, ID_FONT, "omc_set_property", "options",
-           _picker_options([(s["title"], s["name"]) for s in sets]))
+           _sectioned_options(sets))
     names = [s["name"] for s in sets]
     chosen = selected if selected in names else names[0]
     # Setting options never touches the selection, so an option list that no
@@ -401,8 +453,10 @@ def apply_font(window_uuid, set_name, requested_face=None, search="",
     info = set_info(set_name)
     faces = info.get("faces") or []
     if not faces:
+        set_license(window_uuid, {})
         set_status(window_uuid, "'%s' did not resolve - re-run update_icedit.sh" % set_name)
         return {}, "", []
+    set_license(window_uuid, info)
 
     face = resolve_face(info, requested_face)
     dialog(window_uuid, ID_FACE, "omc_set_property", "options",

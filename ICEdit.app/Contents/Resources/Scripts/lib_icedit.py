@@ -27,7 +27,19 @@ PASTEBOARD_TOOL = os.path.join(SUPPORT_PATH, "pasteboard")
 PYTHON3 = os.path.join(APP_BUNDLE, "Contents/Library/Python/bin/python3")
 
 def find_icon_composer():
-    """Find Icon Composer.app in common locations."""
+    """Find Icon Composer.app in common locations, or None if it is not here.
+
+    $ICEDIT_ICTOOL names the tool outright and is used as given. It is honored
+    even when it points at nothing, rather than falling back to the search: an
+    override that is wrong should behave as "that is your ictool and it is not
+    there", because silently rendering with a different tool than the one asked
+    for is the failure that is hardest to notice. That also gives the tests the
+    only seam they have for the not-installed branch, which is otherwise decided
+    by the real filesystem at import time and so unreachable from a test."""
+    override = os.environ.get("ICEDIT_ICTOOL")
+    if override is not None:
+        return override if os.path.isfile(override) else None
+
     search_paths = [
         "/Applications/Icon Composer.app",
         "/Applications/Xcode.app/Contents/Applications/Icon Composer.app",
@@ -78,6 +90,7 @@ PB_ORIGINAL_ICON_PATH = f"icedit_original_path_{DOCUMENT_UUID}"  # original on d
 PB_SELECTED_LAYER = f"icedit_selected_layer_{DOCUMENT_UUID}"
 PB_SELECTED_TYPE = f"icedit_selected_type_{DOCUMENT_UUID}"    # TYPE_LAYER, TYPE_GROUP, or TYPE_BG
 PB_DIRTY = f"icedit_dirty_{DOCUMENT_UUID}"                    # "1" if working copy has unsaved changes
+PB_PREVIEW_BLOCKED = f"icedit_preview_blocked_{DOCUMENT_UUID}"  # "1" while the No Preview notice is up
 PB_ORIGINAL_HASH = f"icedit_original_hash_{DOCUMENT_UUID}"    # SHA-256 of original file's icon.json at load/save time
 PB_CLOSE_AFTER_SAVE = f"icedit_close_after_save_{DOCUMENT_UUID}"  # "1" if save.as was triggered from window close
 
@@ -86,6 +99,7 @@ ID_LAYER_LIST = 100
 ID_BTN_ADD = 101
 ID_BTN_REMOVE = 102
 ID_PREVIEW = 200
+ID_PREVIEW_NOTICE = 201     # shown only when Icon Composer is absent
 ID_STATUS = 399
 ID_BG_FILL = 301
 ID_BG_COLOR1 = 302          # HStack wrapper (show/hide)
@@ -246,9 +260,14 @@ def set_window_title(title):
     set_value("omc_window", title)
 
 
-def set_status(msg):
-    """Set the status label text."""
-    set_value(ID_STATUS, msg)
+def set_status(msg, target=None):
+    """Set the status label text.
+
+    target names the window to write to, for a handler running in a child sheet
+    whose own WINDOW_UUID is the picker's. The document's status label is id 399
+    and a picker has no such view, so an untargeted write from a picker lands
+    nowhere at all."""
+    set_value(ID_STATUS, msg, target=target)
 
 
 def load_icon_json(icon_path):
@@ -380,11 +399,47 @@ def populate_layer_list(icon_data, target=None):
     set_table_rows(ID_LAYER_LIST, rows, target=target)
 
 
+def recheck_preview(icon_path, target_uuid=None):
+    """Re-render if the preview was blocked and Icon Composer has since arrived.
+
+    Every handler is a fresh process that resolves ICTOOL at import, so any
+    ACTION taken after installing Icon Composer already picks it up. Window
+    activation is the one path that does not: it returns early unless the file
+    changed on disk, so a user who installs the tool and comes back to a window
+    they are not editing would sit in front of a notice that is no longer true.
+
+    Costs nothing in the normal case - the flag is unset, so this returns before
+    doing any work, and a full render is only spent on the transition."""
+    if pb_get(PB_PREVIEW_BLOCKED) != "1":
+        return None
+    if not ICTOOL or not os.path.isfile(ICTOOL):
+        return None
+    if not icon_path or not os.path.isdir(icon_path):
+        return None
+    return render_preview(icon_path, target_uuid=target_uuid)
+
+
 def render_preview(icon_path, platform="macOS", target_uuid=None):
     """Render the icon to PNG using ictool and update the preview image."""
-    if not os.path.isfile(ICTOOL):
-        set_status("Icon Composer not installed")
+    # `not ICTOOL` first, and not merely for brevity: find_icon_composer returns
+    # None when nothing was found, and os.path.isfile(None) raises TypeError
+    # rather than answering False - it catches OSError and ValueError, not that.
+    # So on a machine without Icon Composer this line used to take down every
+    # one of render_preview's callers before the message below could run.
+    if not ICTOOL or not os.path.isfile(ICTOOL):
+        # A notice that stays put, because the condition does. The status line
+        # is overwritten by the next handler that says anything, which would
+        # leave a permanently blank preview with nothing explaining it.
+        show_view(ID_PREVIEW_NOTICE, True, target=target_uuid)
+        pb_set(PB_PREVIEW_BLOCKED, "1")
+        set_status("Icon Composer not installed - preview unavailable",
+                   target=target_uuid)
         return None
+
+    # Present: take the notice down. Anything that fails past this point is a
+    # render failure rather than a missing tool, and says so on the status line.
+    show_view(ID_PREVIEW_NOTICE, False, target=target_uuid)
+    pb_set(PB_PREVIEW_BLOCKED, "")
 
     uuid = target_uuid or WINDOW_UUID
     # Alternate between two filenames so ActionUI.Image sees a different path each time
@@ -408,7 +463,7 @@ def render_preview(icon_path, platform="macOS", target_uuid=None):
     if result.returncode != 0:
         err = (result.stderr.strip() or result.stdout.strip())
         log(f"ictool failed: {err}")
-        set_status(f"ictool: {err}")
+        set_status(f"ictool: {err}", target=target_uuid)
         return None
 
     if os.path.isfile(png_path):
@@ -422,7 +477,7 @@ def render_preview(icon_path, platform="macOS", target_uuid=None):
             pass
         return png_path
 
-    set_status("No PNG generated")
+    set_status("No PNG generated", target=target_uuid)
     return None
 
 

@@ -2,13 +2,14 @@
 #
 # The omctest suites (*.test.sh) run ICEdit's Python handlers one at a time with stand-in tools;
 # this file launches the applet itself: the new document at launch, and opening a .icon bundle
-# through ICEdit.open and its NEXT_COMMAND_ID ICEdit.main (the checklist's "open a document").
+# through ICEdit.open and its NEXT_COMMAND_ID ICEdit.main (the checklist's "open a document"),
+# then Add Layer with Image and Save As in the launch's window. Those two are a menu item without a
+# view id and a menu bar command for the key window, which a test launch does not have, so the test
+# runs them as the window's subcommand (itest_run --window), as their menu items would.
 # The test's own files stay in $ITEST_WORK and are never saved over; ICEdit keeps its working
-# copies in $TMPDIR, as for a user, and its close handler removes them.
+# copies in $TMPDIR (the test's own), and its close handler removes them.
 #
-# Not here yet: Add (an unnamed item of the Add Layer menu, so performAction cannot name it), Save
-# and Save As (menu bar commands for the key window, and a test launch has no key window). They
-# need a way to run a command as a given window's subcommand, which the harness does not have.
+# Not here yet: plain Save of a document that has a file (ICEdit.save), and closing a window.
 
 eval "$(/usr/bin/sed -n 's/^\(ID_[A-Z_]*\) *= *\([0-9][0-9]*\).*$/\1=\2/p' \
     "$ITEST_APP/Contents/Resources/Scripts/lib_icedit.py")"
@@ -76,3 +77,25 @@ check "no open panel: the document came with the command" "0" "$(itest_panel_cou
 
 check "which still holds the new document" "Background" "$(row_names "$launched")"
 check "the document on disk is untouched" "$SAMPLE_JSON_BEFORE" "$(/bin/cat "$SAMPLE/icon.json")"
+
+section "Add Layer with Image, run as the window's subcommand"
+make_svg "$ITEST_WORK/Circle.svg" "#FF0000"
+itest_answer_open "$ITEST_WORK/Circle.svg"
+run="$(itest_run ICEdit.layer.add --window "$launched")"
+itest_wait_idle 60
+check "a file chooser was asked for" "open" "$(itest_panel last kind)"
+check "and answered" "false" "$(itest_panel last canceled)"
+check "the layer joined the new document" "$(printf 'Circle\nGroup\nBackground')" "$(row_names "$launched")"
+check_contains "the window took the command" '"dispatchedToWindow": true' "$(itest_call omc.test.log "{\"run\": $run}")"
+
+section "Save As writes the document where the user chose"
+itest_answer_save "$ITEST_WORK/Saved.icon"
+itest_run ICEdit.save.as --window "$launched" > /dev/null
+itest_wait_idle 60
+check "a save panel" "save" "$(itest_panel last kind)"
+check "offering the new document's name" "Untitled.icon" "$(itest_panel last defaultName)"
+check "the bundle was written" "yes" "$([ -f "$ITEST_WORK/Saved.icon/icon.json" ] && printf yes || printf no)"
+check_contains "with the added layer" '"Circle"' "$(/bin/cat "$ITEST_WORK/Saved.icon/icon.json" 2>/dev/null)"
+check "and its image" "yes" "$([ -f "$ITEST_WORK/Saved.icon/Assets/Circle.svg" ] && printf yes || printf no)"
+check "the status names the saved document" "Saved Saved.icon" "$(itest_value "$launched" "$ID_STATUS")"
+check "the opened document is still untouched" "$SAMPLE_JSON_BEFORE" "$(/bin/cat "$SAMPLE/icon.json")"

@@ -6,10 +6,14 @@
 # then Add Layer with Image and Save As in the launch's window. Those two are a menu item without a
 # view id and a menu bar command for the key window, which a test launch does not have, so the test
 # runs them as the window's subcommand (itest_run --window), as their menu items would.
-# The test's own files stay in $ITEST_WORK and are never saved over; ICEdit keeps its working
-# copies in $TMPDIR (the test's own), and its close handler removes them.
+# Everything is in $ITEST_WORK, and the document the test opens is never saved over (only the one
+# ICEdit itself saved, Saved.icon); ICEdit keeps its working copies in $TMPDIR (the test's own), and
+# its close handler removes them.
 #
-# Not here yet: plain Save of a document that has a file (ICEdit.save), and closing a window.
+# Last, both windows are closed as their close buttons would (itest_close): the unchanged one
+# without a question, the changed one after its Save, which writes the document it came from.
+#
+# Not here yet: plain Save of a document that has a file (ICEdit.save).
 
 eval "$(/usr/bin/sed -n 's/^\(ID_[A-Z_]*\) *= *\([0-9][0-9]*\).*$/\1=\2/p' \
     "$ITEST_APP/Contents/Resources/Scripts/lib_icedit.py")"
@@ -99,3 +103,33 @@ check_contains "with the added layer" '"Circle"' "$(/bin/cat "$ITEST_WORK/Saved.
 check "and its image" "yes" "$([ -f "$ITEST_WORK/Saved.icon/Assets/Circle.svg" ] && printf yes || printf no)"
 check "the status names the saved document" "Saved Saved.icon" "$(itest_value "$launched" "$ID_STATUS")"
 check "the opened document is still untouched" "$SAMPLE_JSON_BEFORE" "$(/bin/cat "$SAMPLE/icon.json")"
+
+work_copy() { # <window>: whether ICEdit's working copy for the window is still there
+    if [ -d "${ITEST_TMPDIR}icedit_work_$1" ]; then printf yes; else printf no; fi
+}
+
+section "Closing a document without changes asks nothing and releases its working copy"
+check "the opened document has a working copy" "yes" "$(work_copy "$window")"
+alerts_reset
+itest_close "$window" > /dev/null
+itest_wait_idle 60
+check "no alert" "0" "$(alerts_count)"
+check "the working copy was released" "no" "$(work_copy "$window")"
+check_contains "and the window is closed" "-32602" "$(itest_close "$window" 2>&1)"
+check "the document on disk is still untouched" "$SAMPLE_JSON_BEFORE" "$(/bin/cat "$SAMPLE/icon.json")"
+
+section "Closing a changed document offers to save, and Save writes it"
+make_svg "$ITEST_WORK/Dot.svg" "#0000FF"
+itest_answer_open "$ITEST_WORK/Dot.svg"
+itest_run ICEdit.layer.add --window "$launched" > /dev/null
+itest_wait_idle 60
+check_contains "the second layer joined the saved document" "Dot" "$(row_names "$launched")"
+alerts_reset
+alert_answer 0
+itest_close "$launched" > /dev/null
+itest_wait_idle 60
+check "one alert" "1" "$(alerts_count)"
+check "asking about the unsaved changes to Saved.icon" "1" "$(alerts_mention "Saved.icon")"
+check_contains "Save wrote the document it came from" '"Dot"' "$(/bin/cat "$ITEST_WORK/Saved.icon/icon.json" 2>/dev/null)"
+check_contains "and kept the first layer" '"Circle"' "$(/bin/cat "$ITEST_WORK/Saved.icon/icon.json" 2>/dev/null)"
+check "the working copy was released" "no" "$(work_copy "$launched")"
